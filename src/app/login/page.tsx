@@ -1,108 +1,48 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { api } from "@/lib/client";
-import { DEMO_ACCOUNTS } from "@/lib/demo-accounts";
-import type { PublicUser } from "@/lib/types";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [loginId, setLoginId] = useState("hanako");
-  const [password, setPassword] = useState("student");
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
+const ENTRIES = [
+  {
+    href: "/login/student",
+    kicker: "生徒",
+    title: "学籍番号で入る",
+    body: "質問したいときに使う入口です。職員室に行かなくても、対応できる先生へ届きます。",
+  },
+  {
+    href: "/login/teacher",
+    kicker: "先生",
+    title: "職員番号で入る",
+    body: "質問の受付状況を出して、届いた質問に自分の都合で答えます。",
+  },
+];
 
-  function homeOf(user: PublicUser) {
-    if (user.role === "teacher") return "/teacher";
-    if (user.role === "admin") return "/admin";
-    return "/student";
-  }
-
-  async function submit(event?: React.FormEvent, nextId?: string, nextPassword?: string) {
-    event?.preventDefault();
-    setPending(true);
-    setError("");
-    try {
-      const data = await api<{ user: PublicUser }>("/api/auth", {
-        method: "POST",
-        body: JSON.stringify({
-          loginId: nextId ?? loginId,
-          password: nextPassword ?? password,
-        }),
-      });
-      router.push(homeOf(data.user));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "ログインに失敗しました");
-    } finally {
-      setPending(false);
-    }
-  }
-
+export default function LoginChooserPage() {
   return (
-    <div className="mx-auto grid min-h-screen max-w-5xl items-center gap-10 px-4 py-10 md:grid-cols-2">
-      <div>
-        <Logo large />
-        <h1 className="mt-8 font-serif text-4xl leading-tight">学校の中の、質問の入り口。</h1>
-        <p className="mt-4 text-muted">
-          デモ用のアカウントが用意してあります。生徒・先生・管理者を切り替えて、3つの画面を見られます。
-        </p>
+    <div className="mx-auto min-h-screen max-w-4xl px-4 py-10">
+      <Logo large />
+      <p className="mt-10 text-xs tracking-[0.25em] text-terracotta">LOGIN</p>
+      <h1 className="mt-3 font-serif text-4xl leading-tight">どちらで入りますか</h1>
+      <p className="mt-4 max-w-xl text-muted">
+        生徒と先生では、見る画面も入る番号も違います。自分の役割の入口を選んでください。
+      </p>
+
+      <div className="mt-10 grid gap-4 md:grid-cols-2">
+        {ENTRIES.map((entry) => (
+          <Link key={entry.href} href={entry.href} className="card block p-6 hover:-translate-y-0.5">
+            <p className="text-xs tracking-[0.2em] text-terracotta">{entry.kicker}</p>
+            <h2 className="mt-2 font-serif text-2xl">{entry.title}</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">{entry.body}</p>
+            <p className="mt-6 text-sm font-semibold text-navy">この入口へ →</p>
+          </Link>
+        ))}
       </div>
 
-      <div className="card p-6">
-        <form className="space-y-4" onSubmit={submit}>
-          <label className="block text-sm">
-            ログインID
-            <input
-              className="mt-1 w-full rounded-2xl border border-line bg-paper px-4 py-3 outline-none focus:border-terracotta"
-              value={loginId}
-              onChange={(e) => setLoginId(e.target.value)}
-              autoComplete="username"
-            />
-          </label>
-          <label className="block text-sm">
-            パスワード
-            <input
-              type="password"
-              className="mt-1 w-full rounded-2xl border border-line bg-paper px-4 py-3 outline-none focus:border-terracotta"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-          </label>
-          {error ? <p className="text-sm text-rose">{error}</p> : null}
-          <button className="btn-primary w-full" disabled={pending} type="submit">
-            {pending ? "接続中…" : "ログイン"}
-          </button>
-        </form>
-
-        <div className="mt-6 border-t border-line pt-4">
-          <p className="text-xs tracking-[0.2em] text-muted">DEMO ACCOUNTS</p>
-          <div className="mt-3 grid gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.loginId}
-                type="button"
-                className="flex items-center justify-between rounded-2xl border border-line bg-paper px-3 py-2 text-left text-sm hover:border-terracotta"
-                onClick={() => {
-                  setLoginId(account.loginId);
-                  setPassword(account.password);
-                  void submit(undefined, account.loginId, account.password);
-                }}
-              >
-                <span>
-                  <span className="font-semibold">{account.name}</span>
-                  <span className="ml-2 text-muted">{account.role}</span>
-                </span>
-                <span className="text-xs text-muted">
-                  {account.loginId} / {account.password}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <p className="mt-10 text-sm text-muted">
+        学校の分析を見る方は{" "}
+        <Link href="/login/admin" className="underline-offset-4 hover:underline">
+          管理者入口
+        </Link>
+      </p>
     </div>
   );
 }

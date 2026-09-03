@@ -1,12 +1,30 @@
 import { promises as fs } from "fs";
 import path from "path";
-import type { StoreData } from "./types";
+import { LOGIN_ID_BY_USER_ID } from "./demo-accounts";
 import { createSeedStore } from "./seed";
+import type { StoreData } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
+export const STORE_VERSION = 2;
 
 let writeChain: Promise<unknown> = Promise.resolve();
+
+function migrateStore(store: StoreData): boolean {
+  let changed = false;
+  if ((store.version ?? 1) < 2) {
+    for (const user of store.users) {
+      const nextId = LOGIN_ID_BY_USER_ID[user.id];
+      if (nextId && user.loginId !== nextId) {
+        user.loginId = nextId;
+        changed = true;
+      }
+    }
+    store.version = 2;
+    changed = true;
+  }
+  return changed;
+}
 
 async function ensureStore(): Promise<StoreData> {
   await fs.mkdir(DATA_DIR, { recursive: true });
@@ -16,6 +34,9 @@ async function ensureStore(): Promise<StoreData> {
     const parsed = JSON.parse(raw) as StoreData;
     if (!parsed.users || !parsed.questions) {
       throw new Error("invalid store");
+    }
+    if (migrateStore(parsed)) {
+      await fs.writeFile(STORE_PATH, JSON.stringify(parsed, null, 2), "utf8");
     }
     return parsed;
   } catch {
@@ -52,6 +73,7 @@ export function uploadsDir(): string {
 export async function resetStore(): Promise<StoreData> {
   return updateStore((store) => {
     const seeded = createSeedStore();
+    store.version = seeded.version;
     store.users = seeded.users;
     store.questions = seeded.questions;
     return store;

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "./AppShell";
 import { useUser } from "@/hooks/useUser";
+import { homePath, loginPath } from "@/lib/paths";
 import type { Role } from "@/lib/types";
 
 export function Guard({
@@ -21,13 +22,11 @@ export function Guard({
     const allowed = allowedKey.split(",") as Role[];
     if (loading) return;
     if (!user) {
-      router.replace("/login");
+      router.replace(loginPath(allowed[0] ?? "student"));
       return;
     }
     if (!allowed.includes(user.role)) {
-      const home =
-        user.role === "student" ? "/student" : user.role === "teacher" ? "/teacher" : "/admin";
-      router.replace(home);
+      router.replace(homePath(user.role));
     }
   }, [loading, user, router, allowedKey]);
 

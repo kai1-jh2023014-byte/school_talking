@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "./Logo";
 import { api } from "@/lib/client";
+import { loginPath } from "@/lib/paths";
 import type { PublicUser } from "@/lib/types";
 
 const NAV: Record<PublicUser["role"], { href: string; label: string }[]> = {
@@ -32,7 +33,7 @@ export function AppShell({
 
   async function logout() {
     await api("/api/auth", { method: "DELETE" });
-    router.push("/login");
+    router.push(loginPath(user.role));
   }
 
   const roleLabel =

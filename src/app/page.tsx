@@ -32,9 +32,14 @@ export default function HomePage() {
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
         <Logo large />
-        <Link href="/login" className="btn-primary">
-          ログインしてはじめる
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/login/student" className="btn-primary">
+            生徒ログイン
+          </Link>
+          <Link href="/login/teacher" className="btn-ghost">
+            先生ログイン
+          </Link>
+        </div>
       </header>
 
       <section className="mx-auto max-w-6xl px-4 pb-16 pt-6">
@@ -46,14 +51,21 @@ export default function HomePage() {
           先生を探す必要はない。質問が、先生を見つける。
           生徒と先生のあいだにある小さな壁を、AIとデジタルでつなぐ学校内プラットフォームです。
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/login" className="btn-navy">
-            デモを見る
+        <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-2">
+          <Link href="/login/student" className="card block p-5 hover:-translate-y-0.5">
+            <p className="text-xs tracking-[0.2em] text-terracotta">生徒</p>
+            <h2 className="mt-2 font-serif text-2xl">学籍番号で入る</h2>
+            <p className="mt-2 text-sm text-muted">質問したいときに使う入口です。</p>
           </Link>
-          <a href="#concept" className="btn-ghost">
-            企画の考え方
-          </a>
+          <Link href="/login/teacher" className="card block p-5 hover:-translate-y-0.5">
+            <p className="text-xs tracking-[0.2em] text-terracotta">先生</p>
+            <h2 className="mt-2 font-serif text-2xl">職員番号で入る</h2>
+            <p className="mt-2 text-sm text-muted">受付と回答に使う入口です。</p>
+          </Link>
         </div>
+        <a href="#concept" className="btn-ghost mt-4">
+          企画の考え方
+        </a>
       </section>
 
       <section className="mx-auto grid max-w-6xl gap-4 px-4 md:grid-cols-3">
@@ -113,7 +125,7 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-line py-10 text-center text-sm text-muted">
-        つなぐ — 高校生テックコンテスト2026 企画の実装デモ
+        つなぐ — 生徒と先生で入口を分けた、学校内の質問プラットフォーム
       </footer>
     </div>
   );

@@ -1,4 +1,4 @@
-import { DEMO_PASSWORD } from "./demo-accounts";
+import { DEMO_PASSWORD, LOGIN_ID_BY_USER_ID } from "./demo-accounts";
 import { hashPassword } from "./hash";
 import type { Question, StoreData, User } from "./types";
 
@@ -14,7 +14,7 @@ export function createSeedUsers(): User[] {
   return [
     {
       id: "u-student-1",
-      loginId: "hanako",
+      loginId: LOGIN_ID_BY_USER_ID["u-student-1"],
       passwordHash: studentHash,
       name: "山田 花子",
       role: "student",
@@ -23,7 +23,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-student-2",
-      loginId: "taro",
+      loginId: LOGIN_ID_BY_USER_ID["u-student-2"],
       passwordHash: studentHash,
       name: "佐藤 太郎",
       role: "student",
@@ -32,7 +32,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-student-3",
-      loginId: "hina",
+      loginId: LOGIN_ID_BY_USER_ID["u-student-3"],
       passwordHash: studentHash,
       name: "斎藤 陽菜",
       role: "student",
@@ -41,7 +41,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-student-4",
-      loginId: "ren",
+      loginId: LOGIN_ID_BY_USER_ID["u-student-4"],
       passwordHash: studentHash,
       name: "加藤 蓮",
       role: "student",
@@ -50,7 +50,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-math-a",
-      loginId: "tanaka",
+      loginId: LOGIN_ID_BY_USER_ID["u-math-a"],
       passwordHash: teacherHash,
       name: "田中 美咲",
       role: "teacher",
@@ -61,7 +61,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-math-b",
-      loginId: "suzuki",
+      loginId: LOGIN_ID_BY_USER_ID["u-math-b"],
       passwordHash: teacherHash,
       name: "鈴木 健一",
       role: "teacher",
@@ -73,7 +73,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-english",
-      loginId: "takahashi",
+      loginId: LOGIN_ID_BY_USER_ID["u-english"],
       passwordHash: teacherHash,
       name: "高橋 恵",
       role: "teacher",
@@ -84,7 +84,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-japanese",
-      loginId: "ito",
+      loginId: LOGIN_ID_BY_USER_ID["u-japanese"],
       passwordHash: teacherHash,
       name: "伊藤 誠",
       role: "teacher",
@@ -95,7 +95,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-science",
-      loginId: "nakamura",
+      loginId: LOGIN_ID_BY_USER_ID["u-science"],
       passwordHash: teacherHash,
       name: "中村 理沙",
       role: "teacher",
@@ -106,7 +106,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-social",
-      loginId: "kobayashi",
+      loginId: LOGIN_ID_BY_USER_ID["u-social"],
       passwordHash: teacherHash,
       name: "小林 直人",
       role: "teacher",
@@ -116,7 +116,7 @@ export function createSeedUsers(): User[] {
     },
     {
       id: "u-admin",
-      loginId: "admin",
+      loginId: LOGIN_ID_BY_USER_ID["u-admin"],
       passwordHash: adminHash,
       name: "管理 太郎",
       role: "admin",
@@ -464,6 +464,7 @@ export function createSeedQuestions(): Question[] {
 
 export function createSeedStore(): StoreData {
   return {
+    version: 2,
     users: createSeedUsers(),
     questions: createSeedQuestions(),
   };

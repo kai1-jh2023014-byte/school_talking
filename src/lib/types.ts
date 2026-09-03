@@ -66,6 +66,7 @@ export type Question = {
 export type PublicUser = Omit<User, "passwordHash">;
 
 export type StoreData = {
+  version?: number;
   users: User[];
   questions: Question[];
 };
