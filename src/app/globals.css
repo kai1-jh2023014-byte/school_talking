@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f4efe4;
+  --foreground: #1c2740;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.paper-grid {
+  background-color: #f4efe4;
+  background-image:
+    linear-gradient(rgba(230, 220, 200, 0.7) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(230, 220, 200, 0.45) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.notebook-rule {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 31px,
+    rgba(196, 92, 62, 0.12) 31px,
+    rgba(196, 92, 62, 0.12) 32px
+  );
+}
+
+.ink-underline {
+  background-image: linear-gradient(to right, #c45c3e, #c45c3e);
+  background-repeat: no-repeat;
+  background-size: 100% 2px;
+  background-position: 0 92%;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition;
+  }
+  .btn-primary {
+    @apply btn bg-terracotta text-cream shadow-plate hover:bg-[#b04e32];
+  }
+  .btn-navy {
+    @apply btn bg-navy text-cream shadow-plate hover:bg-ink;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-cream/80 text-ink hover:bg-cream;
+  }
+  .card {
+    @apply rounded-3xl border border-line bg-cream shadow-slip;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
+}
