@@ -9,10 +9,10 @@ const AVAILABILITY_SCORE: Record<Availability, number> = {
 };
 
 export function toSafeTeacher(teacher: SafeTeacher & { loginId?: string; passwordHash?: string }): SafeTeacher {
-  const copy = { ...teacher };
-  delete copy.loginId;
-  delete copy.passwordHash;
-  return copy;
+  const { loginId: _loginId, passwordHash: _passwordHash, ...safe } = teacher;
+  void _loginId;
+  void _passwordHash;
+  return safe;
 }
 
 export function matchTeachers(

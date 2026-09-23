@@ -4,16 +4,16 @@ import { readStore } from "./store";
 import type { PublicUser, Role, SafeTeacher, User } from "./types";
 
 export function toPublicUser(user: User): PublicUser {
-  const copy = { ...user };
-  delete (copy as { passwordHash?: string }).passwordHash;
-  return copy;
+  const { passwordHash: _passwordHash, ...safe } = user;
+  void _passwordHash;
+  return safe;
 }
 
 export function toSafeTeacher(user: User): SafeTeacher {
-  const copy = { ...user } as User & { loginId?: string; passwordHash?: string };
-  delete copy.passwordHash;
-  delete copy.loginId;
-  return copy;
+  const { passwordHash: _passwordHash, loginId: _loginId, ...safe } = user;
+  void _passwordHash;
+  void _loginId;
+  return safe;
 }
 
 export async function getCurrentUser(): Promise<User | null> {

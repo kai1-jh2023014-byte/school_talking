@@ -123,7 +123,7 @@ export function patchUser(user: User, draft: Partial<UserDraft>, actor: User, al
 }
 
 export function toRosterUser(user: User): Omit<User, "passwordHash"> {
-  const copy = { ...user };
-  delete (copy as { passwordHash?: string }).passwordHash;
-  return copy;
+  const { passwordHash: _passwordHash, ...safe } = user;
+  void _passwordHash;
+  return safe;
 }
