@@ -1,4 +1,5 @@
 import type { Availability, QuestionStatus, Urgency } from "./types";
+import { normalizeStatus } from "./questions";
 
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);
@@ -10,17 +11,25 @@ export function formatDateTime(iso: string): string {
 }
 
 export function statusLabel(status: QuestionStatus): string {
-  switch (status) {
-    case "open":
+  switch (normalizeStatus(status)) {
+    case "submitted":
+    case "classified":
+    case "matched":
       return "受付待ち";
-    case "queued":
-      return "待ち行列";
-    case "assigned":
+    case "accepted":
       return "先生が確認中";
+    case "deferred":
+      return "保留";
+    case "transferred":
+      return "転送済み";
     case "answered":
       return "回答あり";
     case "closed":
       return "終了";
+    case "cancelled":
+      return "取り消し";
+    default:
+      return "受付待ち";
   }
 }
 

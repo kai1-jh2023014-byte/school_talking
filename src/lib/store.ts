@@ -1,26 +1,77 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { LOGIN_ID_BY_USER_ID } from "./demo-accounts";
+import { homeroomOf } from "./constants";
+import { normalizeStatus } from "./questions";
 import { createSeedStore } from "./seed";
-import type { StoreData } from "./types";
+import type { Question, StoreData, User } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
-export const STORE_VERSION = 2;
+export const STORE_VERSION = 3;
 
 let writeChain: Promise<unknown> = Promise.resolve();
 
+function classFromHomeroom(homeroom?: string): string | undefined {
+  const match = homeroom?.match(/([A-D])組/);
+  return match?.[1];
+}
+
+function migrateUsers(users: User[]): boolean {
+  let changed = false;
+  for (const user of users) {
+    const nextId = LOGIN_ID_BY_USER_ID[user.id];
+    if (nextId && user.loginId !== nextId) {
+      user.loginId = nextId;
+      changed = true;
+    }
+    if (!user.status) {
+      user.status = "active";
+      changed = true;
+    }
+    if (!user.createdAt) {
+      user.createdAt = new Date().toISOString();
+      changed = true;
+    }
+    if (user.role === "student" && !user.className) {
+      user.className = classFromHomeroom(user.homeroom);
+      if (!user.homeroom) user.homeroom = homeroomOf(user.grade, user.className);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function migrateQuestions(questions: Question[]): boolean {
+  let changed = false;
+  for (const question of questions) {
+    const next = normalizeStatus(question.status);
+    if (next !== question.status) {
+      question.status = next;
+      changed = true;
+    }
+    if (!question.questionType) {
+      question.questionType = "その他";
+      changed = true;
+    }
+    if (!question.events) {
+      question.events = [];
+      changed = true;
+    }
+    if (!question.transferHistory) {
+      question.transferHistory = [];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function migrateStore(store: StoreData): boolean {
   let changed = false;
-  if ((store.version ?? 1) < 2) {
-    for (const user of store.users) {
-      const nextId = LOGIN_ID_BY_USER_ID[user.id];
-      if (nextId && user.loginId !== nextId) {
-        user.loginId = nextId;
-        changed = true;
-      }
-    }
-    store.version = 2;
+  if ((store.version ?? 1) < 2 || (store.version ?? 1) < 3) {
+    if (migrateUsers(store.users)) changed = true;
+    if (migrateQuestions(store.questions)) changed = true;
+    store.version = 3;
     changed = true;
   }
   return changed;

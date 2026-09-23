@@ -1,25 +1,23 @@
 import { NextResponse } from "next/server";
 import { isUser, requireUser } from "@/lib/auth";
 import { presentQuestion } from "@/lib/present";
-import { acceptQuestion, canViewQuestion, deferQuestion } from "@/lib/questions";
+import { canViewQuestion, closeQuestion } from "@/lib/questions";
 import { updateStore } from "@/lib/store";
 
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const user = await requireUser(["teacher"]);
+  const user = await requireUser(["teacher", "admin"]);
   if (!isUser(user)) return user;
-  const body = (await request.json().catch(() => ({}))) as { action?: "accept" | "defer" };
-  const action = body.action ?? "accept";
 
   const result = await updateStore((store) => {
     const target = store.questions.find((item) => item.id === params.id);
     if (!target) return { error: "質問が見つかりません", status: 404 as const };
-    if (!canViewQuestion(user, target) && target.assignedTeacherId && target.assignedTeacherId !== user.id) {
-      return { error: "この質問を操作する権限がありません", status: 403 as const };
+    if (user.role === "teacher" && !canViewQuestion(user, target)) {
+      return { error: "この質問を終了する権限がありません", status: 403 as const };
     }
-    const outcome = action === "defer" ? deferQuestion(target, user) : acceptQuestion(target, user);
+    const outcome = closeQuestion(target, user);
     if (!outcome.ok) return { error: outcome.error, status: 400 as const };
     return { question: presentQuestion(store, target, user) };
   });

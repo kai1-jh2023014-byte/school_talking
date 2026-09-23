@@ -6,6 +6,7 @@ import { Guard } from "@/components/Guard";
 import { TeacherPlate } from "@/components/TeacherPlate";
 import { UrgencyChip } from "@/components/QuestionChips";
 import { api } from "@/lib/client";
+import { SUBJECTS } from "@/lib/constants";
 import type { Classification, Question, TeacherMatch } from "@/lib/types";
 
 export default function AskPage() {
@@ -19,6 +20,8 @@ export default function AskPage() {
 function AskForm() {
   const router = useRouter();
   const [body, setBody] = useState("");
+  const [note, setNote] = useState("");
+  const [subjectHint, setSubjectHint] = useState("");
   const [imagePath, setImagePath] = useState<string>();
   const [preview, setPreview] = useState<string>();
   const [step, setStep] = useState<"edit" | "classifying" | "review">("edit");
@@ -37,7 +40,7 @@ function AskForm() {
       setImagePath(data.imagePath);
       setPreview(URL.createObjectURL(file));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "画像を送れませんでした");
+      setError(err instanceof Error ? err.message : "画像の送信に失敗しました。もう一度お試しください。");
     }
   }
 
@@ -51,29 +54,36 @@ function AskForm() {
     try {
       const data = await api<{ classification: Classification; matches: TeacherMatch[] }>(
         "/api/classify",
-        { method: "POST", body: JSON.stringify({ body }) },
+        { method: "POST", body: JSON.stringify({ body, subjectHint: subjectHint || undefined }) },
       );
       setClassification(data.classification);
       setMatches(data.matches);
       setSelectedTeacherId(data.matches[0]?.teacher.id ?? null);
       setStep("review");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "整理に失敗しました");
+      setError(err instanceof Error ? err.message : "質問の整理に失敗しました。もう一度お試しください。");
       setStep("edit");
     }
   }
 
   async function submit() {
+    if (pending) return;
     setPending(true);
     setError("");
     try {
       const data = await api<{ question: Question }>("/api/questions", {
         method: "POST",
-        body: JSON.stringify({ body, imagePath, teacherId: selectedTeacherId }),
+        body: JSON.stringify({
+          body,
+          note: note || undefined,
+          imagePath,
+          teacherId: selectedTeacherId,
+          subjectHint: subjectHint || undefined,
+        }),
       });
       router.push(`/student/questions/${data.question.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "投稿に失敗しました");
+      setError(err instanceof Error ? err.message : "質問の送信に失敗しました。もう一度お試しください。");
       setPending(false);
     }
   }
@@ -91,7 +101,7 @@ function AskForm() {
       {step === "classifying" ? (
         <div className="card p-10 text-center">
           <p className="font-serif text-2xl">質問を整理しています</p>
-          <p className="mt-3 text-sm text-muted">科目・分野・緊急度を確認し、対応できる先生を探しています。</p>
+          <p className="mt-3 text-sm text-muted">科目・分野・緊急度を確認し、対応できる先生を探しています。答えは出しません。</p>
         </div>
       ) : null}
 
@@ -103,6 +113,30 @@ function AskForm() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
+          <label className="mt-4 block text-sm">
+            科目が分かれば選ぶ（任意）
+            <select
+              className="mt-1 w-full rounded-2xl border border-line bg-paper px-4 py-3"
+              value={subjectHint}
+              onChange={(e) => setSubjectHint(e.target.value)}
+            >
+              <option value="">おまかせ</option>
+              {SUBJECTS.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mt-4 block text-sm">
+            補足（任意）
+            <input
+              className="mt-1 w-full rounded-2xl border border-line bg-paper px-4 py-3"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="テスト範囲、授業のページなど"
+            />
+          </label>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label className="btn-ghost cursor-pointer">
               問題を撮影する
@@ -120,7 +154,7 @@ function AskForm() {
           </div>
           {error ? <p className="mt-3 text-sm text-rose">{error}</p> : null}
           <button className="btn-primary mt-6" type="button" onClick={() => void classify()}>
-            AIに内容を整理してもらう
+            先生を見つける
           </button>
         </div>
       ) : null}
@@ -128,10 +162,11 @@ function AskForm() {
       {step === "review" && classification ? (
         <div className="space-y-6">
           <section className="card p-6">
-            <h2 className="font-serif text-2xl">AIの整理結果</h2>
+            <h2 className="font-serif text-2xl">質問の整理</h2>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="chip bg-navy/10 text-navy">科目 {classification.subject}</span>
               <span className="chip bg-navy/10 text-navy">分野 {classification.topic}</span>
+              <span className="chip bg-navy/10 text-navy">タイプ {classification.questionType}</span>
               <span className="chip bg-navy/10 text-navy">担当 {classification.recommendedDept}</span>
               <UrgencyChip urgency={classification.urgency} />
             </div>
@@ -148,7 +183,7 @@ function AskForm() {
 
           <section>
             <h2 className="font-serif text-2xl">この質問なら、この先生</h2>
-            <p className="mt-1 text-sm text-muted">対応状況も見ながら、届け先を選べます。</p>
+            <p className="mt-1 text-sm text-muted">対応状況と、いま抱えている件数も見ながら選べます。</p>
             <div className="mt-4 grid gap-3">
               {matches.map((match) => (
                 <TeacherPlate
@@ -157,6 +192,7 @@ function AskForm() {
                   selected={selectedTeacherId === match.teacher.id}
                   onSelect={() => setSelectedTeacherId(match.teacher.id)}
                   reasons={match.reasons}
+                  activeCount={match.activeCount}
                 />
               ))}
             </div>

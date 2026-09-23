@@ -1,4 +1,5 @@
-import type { Availability, Classification, PublicUser, TeacherMatch } from "./types";
+import { teacherLoad } from "./questions";
+import type { Availability, Classification, Question, SafeTeacher, TeacherMatch } from "./types";
 
 const AVAILABILITY_SCORE: Record<Availability, number> = {
   available: 40,
@@ -7,15 +8,19 @@ const AVAILABILITY_SCORE: Record<Availability, number> = {
   off: 0,
 };
 
-function toPublic(user: PublicUser): PublicUser {
-  return user;
+export function toSafeTeacher(teacher: SafeTeacher & { loginId?: string; passwordHash?: string }): SafeTeacher {
+  const copy = { ...teacher };
+  delete copy.loginId;
+  delete copy.passwordHash;
+  return copy;
 }
 
 export function matchTeachers(
-  teachers: PublicUser[],
+  teachers: SafeTeacher[],
   classification: Classification,
+  questions: Question[] = [],
 ): TeacherMatch[] {
-  const pool = teachers.filter((t) => t.role === "teacher");
+  const pool = teachers.filter((t) => t.role === "teacher" && t.status !== "disabled");
   const subjectPool = pool.filter((t) => t.subjects?.includes(classification.subject));
   const candidates = subjectPool.length > 0 ? subjectPool : pool;
 
@@ -24,11 +29,13 @@ export function matchTeachers(
       const reasons: string[] = [];
       let score = 0;
       const availability = teacher.availability ?? "off";
+      const activeCount = teacherLoad(teacher.id, questions);
       score += AVAILABILITY_SCORE[availability];
+      score -= Math.min(activeCount * 8, 24);
 
       if (teacher.subjects?.includes(classification.subject)) {
         score += 30;
-        reasons.push(`担当科目が${classification.subject}です`);
+        reasons.push(`${classification.subject}を担当しています`);
       } else {
         reasons.push("科目は完全一致ではありませんが、候補として表示しています");
       }
@@ -41,7 +48,7 @@ export function matchTeachers(
       );
       if (specialtyHit) {
         score += 50;
-        reasons.push(`専門分野「${specialtyHit}」が質問内容と近いです`);
+        reasons.push(`${specialtyHit}が専門で、この質問に近いです`);
       }
 
       if (availability === "available") {
@@ -58,13 +65,20 @@ export function matchTeachers(
         reasons.push("本日の対応は終了しています");
       }
 
-      return { teacher: toPublic(teacher), score, reasons };
+      if (activeCount > 0) {
+        reasons.push(`いま未処理の質問が${activeCount}件あります`);
+      } else {
+        reasons.push("いま抱えている未処理質問はありません");
+      }
+
+      return { teacher: toSafeTeacher(teacher), score, reasons, activeCount };
     })
     .sort((a, b) => {
       const availabilityDelta =
         AVAILABILITY_SCORE[b.teacher.availability ?? "off"] -
         AVAILABILITY_SCORE[a.teacher.availability ?? "off"];
       if (availabilityDelta !== 0) return availabilityDelta;
+      if (a.activeCount !== b.activeCount) return a.activeCount - b.activeCount;
       return b.score - a.score;
     });
 }

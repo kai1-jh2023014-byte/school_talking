@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { isUser, requireUser } from "@/lib/auth";
+import { presentQuestion } from "@/lib/present";
+import { canViewQuestion } from "@/lib/questions";
 import { readStore } from "@/lib/store";
 
 export async function GET(
@@ -13,28 +15,9 @@ export async function GET(
   if (!question) {
     return NextResponse.json({ error: "質問が見つかりません" }, { status: 404 });
   }
-  if (user.role === "student" && question.studentId !== user.id) {
-    return NextResponse.json({ error: "権限がありません" }, { status: 403 });
+  if (!canViewQuestion(user, question)) {
+    return NextResponse.json({ error: "この質問を見る権限がありません" }, { status: 403 });
   }
 
-  const student = store.users.find((u) => u.id === question.studentId);
-  const teacher = question.assignedTeacherId
-    ? store.users.find((u) => u.id === question.assignedTeacherId)
-    : undefined;
-  const suggested = store.users.filter((u) => question.suggestedTeacherIds.includes(u.id));
-
-  return NextResponse.json({
-    question: {
-      ...question,
-      studentName: student?.name ?? "不明",
-      studentHomeroom: student?.homeroom,
-      assignedTeacherName: teacher?.name,
-      suggestedTeachers: suggested.map((item) => ({
-        id: item.id,
-        name: item.name,
-        availability: item.availability,
-        subjects: item.subjects,
-      })),
-    },
-  });
+  return NextResponse.json({ question: presentQuestion(store, question, user) });
 }
