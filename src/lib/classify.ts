@@ -1,4 +1,4 @@
-import type { Classification, Urgency } from "./types";
+import type { Classification, ClassifySource, QuestionType, Urgency } from "./types";
 
 type TopicRule = {
   name: string;
@@ -194,20 +194,38 @@ function detectUrgency(text: string): Urgency {
   return "normal";
 }
 
+function detectQuestionType(text: string): QuestionType {
+  if (/求め方|解き方|どう解|やり方|解法/.test(text)) return "解法";
+  if (/なぜ|どうして|意味|違い|どう違う/.test(text)) return "概念";
+  if (/計算|答えが合|計算ミス/.test(text)) return "計算";
+  if (/合ってる|確認|これでよい|合っています/.test(text)) return "確認";
+  return "その他";
+}
+
 function makeSummary(body: string, subject: string, topic: string): string {
   const compact = body.replace(/\s+/g, " ").trim();
   if (compact.length <= 42) return compact;
   return `${subject}の${topic}についての質問`;
 }
 
-export function classifyQuestion(body: string): Classification {
+export function classifyQuestion(body: string, subjectHint?: string): Classification {
   const text = body.trim();
   const haystack = normalize(text);
   const reasons: string[] = [];
+  const questionType = detectQuestionType(text);
 
   let bestSubject = SUBJECT_RULES[0];
   let bestSubjectHits = 0;
   let subjectMatched: string[] = [];
+
+  if (subjectHint) {
+    const hinted = SUBJECT_RULES.find((rule) => rule.name === subjectHint);
+    if (hinted) {
+      bestSubject = hinted;
+      bestSubjectHits = 100;
+      reasons.push(`生徒が科目を${subjectHint}と指定したので、その担当へつなぎます。`);
+    }
+  }
 
   for (const rule of SUBJECT_RULES) {
     const { hits, matched } = countHits(haystack, rule.keywords);
@@ -230,7 +248,9 @@ export function classifyQuestion(body: string): Classification {
       summary: makeSummary(text, "学校生活", "相談"),
       urgency: detectUrgency(text),
       recommendedDept: "担任・学年",
+      questionType,
       reasons: ["科目を特定できる語が見つからなかったため、一般の相談として整理しました。"],
+      source: "rules",
     };
   }
 
@@ -268,6 +288,7 @@ export function classifyQuestion(body: string): Classification {
     reasons.push("期限の指定がないため、緊急度は通常です。");
   }
 
+  reasons.push(`質問タイプは「${questionType}」として整理しました。`);
   reasons.push("AIは答えを出しません。対応できる先生へつなぐために使っています。");
 
   return {
@@ -276,6 +297,101 @@ export function classifyQuestion(body: string): Classification {
     summary: makeSummary(text, bestSubject.name, topicName),
     urgency,
     recommendedDept: bestSubject.dept,
+    questionType,
     reasons,
+    source: "rules",
   };
+}
+
+function fallbackClassification(body: string, subjectHint?: string): Classification {
+  return {
+    subject: subjectHint || "その他",
+    topic: "一般",
+    summary: body.replace(/\s+/g, " ").trim().slice(0, 42) || "質問",
+    urgency: "normal",
+    recommendedDept: subjectHint ? `${subjectHint}科` : "担任・学年",
+    questionType: "その他",
+    reasons: ["自動整理に失敗したため、一般の質問として受け付けます。答えは出していません。"],
+    source: "fallback",
+  };
+}
+
+async function classifyWithOpenAI(body: string, subjectHint?: string): Promise<Classification | null> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "高校の質問を分類する。答えは出さない。JSONで subject, topic, questionType, urgency, recommendedDept, summary, reasons を返す。questionTypeは解法/概念/計算/確認/その他。urgencyはlow/normal/high。",
+          },
+          {
+            role: "user",
+            content: subjectHint ? `科目の指定: ${subjectHint}\n${body}` : body,
+          },
+        ],
+      }),
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Classification>;
+    if (!parsed.subject || !parsed.topic) return null;
+    return {
+      subject: String(parsed.subject),
+      topic: String(parsed.topic),
+      summary: String(parsed.summary || `${parsed.subject}の${parsed.topic}についての質問`),
+      urgency: parsed.urgency === "high" || parsed.urgency === "low" ? parsed.urgency : "normal",
+      recommendedDept: String(parsed.recommendedDept || parsed.subject),
+      questionType: (["解法", "概念", "計算", "確認", "その他"] as QuestionType[]).includes(
+        parsed.questionType as QuestionType,
+      )
+        ? (parsed.questionType as QuestionType)
+        : "その他",
+      reasons: Array.isArray(parsed.reasons)
+        ? parsed.reasons.map(String)
+        : ["内容を整理し、担当の先生へつなぎます。"],
+      source: "ai",
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function classifyQuestionSafe(
+  body: string,
+  subjectHint?: string,
+): Promise<Classification> {
+  try {
+    const ai = await classifyWithOpenAI(body, subjectHint);
+    if (ai) return ai;
+  } catch {
+    // fall through to rules
+  }
+  try {
+    const result = classifyQuestion(body, subjectHint);
+    const source: ClassifySource = process.env.OPENAI_API_KEY ? "fallback" : "rules";
+    return { ...result, source };
+  } catch {
+    return fallbackClassification(body, subjectHint);
+  }
 }

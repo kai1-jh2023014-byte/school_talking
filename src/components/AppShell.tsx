@@ -14,9 +14,12 @@ const NAV: Record<PublicUser["role"], { href: string; label: string }[]> = {
   ],
   teacher: [
     { href: "/teacher", label: "受付と質問" },
+    { href: "/teacher/history", label: "対応した質問" },
   ],
   admin: [
-    { href: "/admin", label: "学校の分析" },
+    { href: "/admin", label: "分析" },
+    { href: "/admin/users", label: "名簿" },
+    { href: "/admin/questions", label: "質問履歴" },
   ],
 };
 
@@ -46,7 +49,13 @@ export function AppShell({
           <Logo />
           <nav className="flex items-center gap-1 text-sm">
             {links.map((link) => {
-              const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+              const better = links.some(
+                (other) =>
+                  other.href !== link.href &&
+                  other.href.length > link.href.length &&
+                  (pathname === other.href || pathname.startsWith(`${other.href}/`)),
+              );
+              const active = pathname === link.href || (pathname.startsWith(`${link.href}/`) && !better);
               return (
                 <Link
                   key={link.href}

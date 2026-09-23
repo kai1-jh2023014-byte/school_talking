@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { QuestionStatusChip, UrgencyChip } from "@/components/QuestionChips";
+import { usePoll } from "@/hooks/usePoll";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
+import { queueBucket } from "@/lib/questions";
 import type { Availability, PublicUser, Question } from "@/lib/types";
 
 type Row = Question & {
@@ -20,6 +22,13 @@ const STATUSES: { value: Availability; title: string; help: string }[] = [
   { value: "off", title: "本日は対応終了", help: "今日はここまで" },
 ];
 
+const TABS = [
+  { id: "new", label: "新しい質問" },
+  { id: "active", label: "対応中" },
+  { id: "deferred", label: "保留" },
+  { id: "transferred", label: "転送" },
+] as const;
+
 export default function TeacherHomePage() {
   return (
     <Guard role="teacher">
@@ -32,21 +41,27 @@ function TeacherHome() {
   const [me, setMe] = useState<PublicUser | null>(null);
   const [questions, setQuestions] = useState<Row[]>([]);
   const [minutes, setMinutes] = useState(10);
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("new");
   const [error, setError] = useState("");
 
-  async function load() {
-    const [auth, inbox] = await Promise.all([
+  const load = useCallback(() => {
+    Promise.all([
       api<{ user: PublicUser }>("/api/auth"),
       api<{ questions: Row[] }>("/api/questions?inbox=1"),
-    ]);
-    setMe(auth.user);
-    setQuestions(inbox.questions);
-    if (auth.user.availableInMinutes) setMinutes(auth.user.availableInMinutes);
-  }
+    ])
+      .then(([auth, inbox]) => {
+        setMe(auth.user);
+        setQuestions(inbox.questions);
+        if (auth.user.availableInMinutes) setMinutes(auth.user.availableInMinutes);
+        setError("");
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "読み込みに失敗しました"));
+  }, []);
 
   useEffect(() => {
-    load().catch((err) => setError(err instanceof Error ? err.message : "読み込みに失敗しました"));
-  }, []);
+    load();
+  }, [load]);
+  usePoll(load);
 
   async function setStatus(availability: Availability) {
     setError("");
@@ -60,11 +75,11 @@ function TeacherHome() {
       });
       setMe(data.teacher);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "更新できませんでした");
+      setError(err instanceof Error ? err.message : "受付状況を更新できませんでした");
     }
   }
 
-  const waiting = questions.filter((q) => q.status !== "answered").length;
+  const visible = questions.filter((question) => queueBucket(question) === tab);
 
   return (
     <div className="space-y-8">
@@ -72,7 +87,8 @@ function TeacherHome() {
         <p className="text-xs tracking-[0.2em] text-terracotta">AVAILABILITY</p>
         <h1 className="mt-1 font-serif text-3xl">質問の受付状況</h1>
         <p className="mt-2 text-sm text-muted">
-          在席ではなく、「今この質問に乗れるか」を生徒に見せます。待ち行列は {waiting} 件です。
+          在席ではなく、「今この質問に乗れるか」を生徒に見せます。未処理は{" "}
+          {questions.filter((q) => queueBucket(q) !== "answered").length} 件です。
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {STATUSES.map((item) => {
@@ -107,9 +123,20 @@ function TeacherHome() {
       {error ? <p className="text-rose">{error}</p> : null}
 
       <section>
-        <h2 className="mb-4 font-serif text-2xl">届いている質問</h2>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`rounded-full px-3 py-1.5 text-sm ${tab === item.id ? "bg-navy text-cream" : "bg-line/60"}`}
+              onClick={() => setTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <div className="space-y-3">
-          {questions.map((question) => (
+          {visible.map((question) => (
             <Link
               key={question.id}
               href={`/teacher/questions/${question.id}`}
@@ -130,7 +157,7 @@ function TeacherHome() {
               </p>
             </Link>
           ))}
-          {questions.length === 0 ? <p className="text-muted">いま届いている質問はありません。</p> : null}
+          {visible.length === 0 ? <p className="text-muted">この一覧には質問がありません。</p> : null}
         </div>
       </section>
     </div>

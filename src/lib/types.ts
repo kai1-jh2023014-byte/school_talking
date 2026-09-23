@@ -1,15 +1,39 @@
 export type Role = "student" | "teacher" | "admin";
 
+export type AccountStatus = "active" | "disabled";
+
 export type Availability = "available" | "soon" | "busy" | "off";
 
 export type Urgency = "low" | "normal" | "high";
 
+export type QuestionType = "解法" | "概念" | "計算" | "確認" | "その他";
+
+export type ClassifySource = "rules" | "ai" | "fallback";
+
 export type QuestionStatus =
+  | "submitted"
+  | "classified"
+  | "matched"
+  | "accepted"
+  | "deferred"
+  | "answered"
+  | "transferred"
+  | "closed"
+  | "cancelled"
   | "open"
   | "queued"
-  | "assigned"
+  | "assigned";
+
+export type QuestionEventType =
+  | "submitted"
+  | "classified"
+  | "matched"
+  | "accepted"
+  | "deferred"
   | "answered"
-  | "closed";
+  | "transferred"
+  | "closed"
+  | "cancelled";
 
 export type User = {
   id: string;
@@ -17,7 +41,10 @@ export type User = {
   passwordHash: string;
   name: string;
   role: Role;
+  status: AccountStatus;
+  createdAt: string;
   grade?: string;
+  className?: string;
   homeroom?: string;
   subjects?: string[];
   specialties?: string[];
@@ -30,7 +57,14 @@ export type TransferRecord = {
   fromTeacherId: string;
   toTeacherId: string;
   at: string;
-  note?: string;
+  note: string;
+};
+
+export type QuestionEvent = {
+  type: QuestionEventType;
+  at: string;
+  actorId?: string;
+  message: string;
 };
 
 export type Classification = {
@@ -39,13 +73,16 @@ export type Classification = {
   summary: string;
   urgency: Urgency;
   recommendedDept: string;
+  questionType: QuestionType;
   reasons: string[];
+  source: ClassifySource;
 };
 
 export type Question = {
   id: string;
   studentId: string;
   body: string;
+  note?: string;
   imagePath?: string;
   createdAt: string;
   subject: string;
@@ -53,7 +90,9 @@ export type Question = {
   summary: string;
   urgency: Urgency;
   recommendedDept: string;
+  questionType: QuestionType;
   classifyReasons: string[];
+  classifySource?: ClassifySource;
   status: QuestionStatus;
   assignedTeacherId?: string | null;
   suggestedTeacherIds: string[];
@@ -61,9 +100,12 @@ export type Question = {
   answeredAt?: string;
   answeredBy?: string;
   transferHistory: TransferRecord[];
+  events: QuestionEvent[];
 };
 
 export type PublicUser = Omit<User, "passwordHash">;
+
+export type SafeTeacher = Omit<User, "passwordHash" | "loginId">;
 
 export type StoreData = {
   version?: number;
@@ -72,7 +114,13 @@ export type StoreData = {
 };
 
 export type TeacherMatch = {
-  teacher: PublicUser;
+  teacher: SafeTeacher;
   score: number;
   reasons: string[];
+  activeCount: number;
+};
+
+export type SessionPayload = {
+  userId: string;
+  role: Role;
 };

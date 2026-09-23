@@ -10,6 +10,8 @@ const users: User[] = [
     passwordHash: hashPassword("student"),
     name: "山田 花子",
     role: "student",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "t1",
@@ -17,6 +19,17 @@ const users: User[] = [
     passwordHash: hashPassword("teacher"),
     name: "田中 美咲",
     role: "teacher",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "s-off",
+    loginId: "2A-99",
+    passwordHash: hashPassword("student"),
+    name: "無効 生徒",
+    role: "student",
+    status: "disabled",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
@@ -71,5 +84,18 @@ describe("authenticate", () => {
     const result = authenticate(users, { loginId: "2A-01", password: "student" });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe(400);
+  });
+
+  it("rejects a disabled account without saying the account is disabled", () => {
+    const result = authenticate(users, {
+      loginId: "2A-99",
+      password: "student",
+      role: "student",
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      status: 401,
+      error: "学籍番号またはパスワードが違います",
+    });
   });
 });

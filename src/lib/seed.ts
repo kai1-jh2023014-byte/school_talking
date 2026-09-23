@@ -10,8 +10,9 @@ export function createSeedUsers(): User[] {
   const studentHash = hashPassword(DEMO_PASSWORD.student);
   const teacherHash = hashPassword(DEMO_PASSWORD.teacher);
   const adminHash = hashPassword(DEMO_PASSWORD.admin);
+  const createdAt = hoursAgo(24 * 40);
 
-  return [
+  const users = [
     {
       id: "u-student-1",
       loginId: LOGIN_ID_BY_USER_ID["u-student-1"],
@@ -122,14 +123,67 @@ export function createSeedUsers(): User[] {
       role: "admin",
     },
   ];
+
+  return users.map((user) => ({
+    ...user,
+    status: "active" as const,
+    createdAt,
+    className: user.homeroom?.match(/([A-D])組/)?.[1],
+  })) as User[];
 }
 
-function q(partial: Omit<Question, "transferHistory" | "classifyReasons" | "suggestedTeacherIds"> & Partial<Question>): Question {
+const STATUS_MAP = {
+  open: "matched",
+  queued: "deferred",
+  assigned: "accepted",
+} as const;
+
+function q(partial: Omit<Question, "transferHistory" | "classifyReasons" | "suggestedTeacherIds" | "events" | "questionType"> & Partial<Question>): Question {
+  const status = (STATUS_MAP as Record<string, Question["status"]>)[partial.status] ?? partial.status;
+  const events = partial.events ?? [
+    {
+      type: "submitted" as const,
+      at: partial.createdAt,
+      actorId: partial.studentId,
+      message: "質問を投稿しました",
+    },
+    {
+      type: "classified" as const,
+      at: partial.createdAt,
+      message: `${partial.subject} / ${partial.topic} として整理しました`,
+    },
+  ];
+  if (!partial.events && partial.assignedTeacherId) {
+    events.push({
+      type: status === "accepted" ? "accepted" : "matched",
+      at: partial.createdAt,
+      message:
+        status === "accepted" ? "先生が質問を受け付けました" : "先生の待ち行列に入れました",
+    });
+  }
+  if (!partial.events && status === "answered") {
+    events.push({
+      type: "answered",
+      at: partial.answeredAt ?? partial.createdAt,
+      actorId: partial.answeredBy,
+      message: "先生から回答が届きました",
+    });
+  }
+  if (!partial.events && status === "deferred") {
+    events.push({
+      type: "deferred",
+      at: partial.createdAt,
+      message: "先生が、あとで対応するとしました",
+    });
+  }
   return {
     transferHistory: [],
-    classifyReasons: ["デモ用の蓄積データです。"],
+    classifyReasons: ["確認用の蓄積データです。"],
     suggestedTeacherIds: [],
+    questionType: partial.questionType ?? "解法",
     ...partial,
+    status,
+    events: partial.events ?? events,
   };
 }
 
@@ -459,12 +513,46 @@ export function createSeedQuestions(): Question[] {
       answeredAt: hoursAgo(128),
       answeredBy: "u-japanese",
     }),
+    q({
+      id: "q-21",
+      studentId: "u-student-2",
+      body: "二次関数の平行移動で、符号を逆に取る理由がまだしっくりきません。",
+      createdAt: hoursAgo(24 * 40),
+      subject: "数学",
+      topic: "二次関数",
+      summary: "二次関数の平行移動",
+      urgency: "normal",
+      recommendedDept: "数学科",
+      status: "answered",
+      assignedTeacherId: "u-math-a",
+      suggestedTeacherIds: ["u-math-a"],
+      answer: "y = (x - p)^2 は右に p です。式の中の符号と、グラフの動きをセットで覚えると間違えにくいです。",
+      answeredAt: hoursAgo(24 * 40 - 2),
+      answeredBy: "u-math-a",
+    }),
+    q({
+      id: "q-22",
+      studentId: "u-student-3",
+      body: "二次関数の最大値を平方完成せずに求める方法はありますか。",
+      createdAt: hoursAgo(24 * 45),
+      subject: "数学",
+      topic: "二次関数",
+      summary: "二次関数の最大値の別解",
+      urgency: "low",
+      recommendedDept: "数学科",
+      status: "answered",
+      assignedTeacherId: "u-math-a",
+      suggestedTeacherIds: ["u-math-a"],
+      answer: "軸の公式 x = -b/2a を使っても同じです。平方完成はその式の意味を見る手順です。",
+      answeredAt: hoursAgo(24 * 45 - 1),
+      answeredBy: "u-math-a",
+    }),
   ];
 }
 
 export function createSeedStore(): StoreData {
   return {
-    version: 2,
+    version: 3,
     users: createSeedUsers(),
     questions: createSeedQuestions(),
   };

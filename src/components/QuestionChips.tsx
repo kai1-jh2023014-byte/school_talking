@@ -1,12 +1,17 @@
 import type { QuestionStatus, Urgency } from "@/lib/types";
 import { statusLabel, urgencyLabel } from "@/lib/format";
+import { normalizeStatus } from "@/lib/questions";
 
-const STATUS: Record<QuestionStatus, string> = {
-  open: "bg-gold/15 text-gold",
-  queued: "bg-navy/10 text-navy",
-  assigned: "bg-sage/15 text-sage",
+const STATUS: Record<string, string> = {
+  submitted: "bg-gold/15 text-gold",
+  classified: "bg-gold/15 text-gold",
+  matched: "bg-gold/15 text-gold",
+  accepted: "bg-sage/15 text-sage",
+  deferred: "bg-navy/10 text-navy",
+  transferred: "bg-navy/10 text-navy",
   answered: "bg-terracotta/15 text-terracotta",
   closed: "bg-line text-muted",
+  cancelled: "bg-line text-muted",
 };
 
 const URGENCY: Record<Urgency, string> = {
@@ -16,7 +21,8 @@ const URGENCY: Record<Urgency, string> = {
 };
 
 export function QuestionStatusChip({ status }: { status: QuestionStatus }) {
-  return <span className={`chip ${STATUS[status]}`}>{statusLabel(status)}</span>;
+  const key = normalizeStatus(status);
+  return <span className={`chip ${STATUS[key] ?? STATUS.matched}`}>{statusLabel(status)}</span>;
 }
 
 export function UrgencyChip({ urgency }: { urgency: Urgency }) {

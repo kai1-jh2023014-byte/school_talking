@@ -52,7 +52,7 @@ function AdminDashboard() {
           <p className="text-xs tracking-[0.2em] text-terracotta">SCHOOL INSIGHTS</p>
           <h1 className="mt-1 font-serif text-3xl">生徒がどこで困っているか</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            質問は、個人のやりとりで終わりません。蓄積すると、授業と学校を改善するデータになります。
+            個人のやりとりは、授業と学校を見直す材料になります。増減は「直近30日」と「その前の30日」の比較です。原因までは断定しません。
           </p>
         </div>
         <button className="btn-ghost text-xs" disabled={resetting} onClick={() => void reset()}>
@@ -62,11 +62,13 @@ function AdminDashboard() {
 
       {error ? <p className="text-rose">{error}</p> : null}
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: "質問の総数", value: data.total },
           { label: "回答済み", value: data.answered },
           { label: "未対応", value: data.unanswered },
+          { label: "対応中", value: data.inProgress },
+          { label: "転送したことあり", value: data.transferred },
         ].map((item) => (
           <article key={item.label} className="card p-5">
             <p className="text-xs text-muted">{item.label}</p>
@@ -74,6 +76,25 @@ function AdminDashboard() {
           </article>
         ))}
       </section>
+
+      <article className="card p-6">
+        <h2 className="font-serif text-2xl">つまずきが集まっている分野</h2>
+        <p className="mt-1 text-sm text-muted">直近30日で質問が多い分野です。授業の見直し候補として見てください。</p>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {data.struggles.length === 0 ? (
+            <p className="text-sm text-muted">直近30日の質問はまだ少ないです。</p>
+          ) : (
+            data.struggles.map((item) => (
+              <div key={`${item.subject}-${item.topic}`} className="rounded-2xl border border-line bg-paper p-4">
+                <p className="text-xs text-muted">{item.subject}</p>
+                <p className="font-serif text-xl">{item.topic}</p>
+                <p className="mt-2 text-sm">直近30日 {item.count}件</p>
+                {item.deltaLabel ? <p className="mt-1 text-xs text-terracotta">{item.deltaLabel}</p> : null}
+              </div>
+            ))
+          )}
+        </div>
+      </article>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <article className="card p-6">
@@ -95,8 +116,24 @@ function AdminDashboard() {
         </article>
       </section>
 
+      <section className="grid gap-6 lg:grid-cols-2">
+        <article className="card p-6">
+          <h2 className="font-serif text-2xl">時間帯</h2>
+          <p className="mt-1 text-sm text-muted">朝・昼休み・放課後・夜など、学校のリズムで見ます。</p>
+          <div className="mt-5">
+            <BarList items={data.bySlot.map((item) => ({ label: item.slot, count: item.count }))} />
+          </div>
+        </article>
+        <article className="card p-6">
+          <h2 className="font-serif text-2xl">いまの状態</h2>
+          <div className="mt-5">
+            <BarList items={data.byStatus.map((item) => ({ label: item.status, count: item.count }))} />
+          </div>
+        </article>
+      </section>
+
       <article className="card p-6">
-        <h2 className="font-serif text-2xl">時間帯別の質問</h2>
+        <h2 className="font-serif text-2xl">時刻ごとの質問</h2>
         <p className="mt-1 text-sm text-muted">放課後に集中していないか、学校全体で見られます。</p>
         <div className="mt-6">
           <HourBars items={data.byHour} />

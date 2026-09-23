@@ -11,7 +11,12 @@ export async function POST(request: Request) {
   const user = await requireUser(["student"]);
   if (!isUser(user)) return user;
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "画像の送信に失敗しました。もう一度お試しください。" }, { status: 400 });
+  }
   const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "画像ファイルを選んでください" }, { status: 400 });

@@ -1,22 +1,24 @@
 import { StatusBadge } from "./StatusBadge";
-import type { PublicUser } from "@/lib/types";
+import type { SafeTeacher } from "@/lib/types";
 
 export function TeacherPlate({
   teacher,
   selected,
   onSelect,
   reasons,
+  activeCount,
 }: {
-  teacher: PublicUser;
+  teacher: SafeTeacher;
   selected?: boolean;
   onSelect?: () => void;
   reasons?: string[];
+  activeCount?: number;
 }) {
   const content = (
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs tracking-[0.2em] text-muted">TEACHER</p>
+          <p className="text-xs tracking-[0.2em] text-muted">おすすめ</p>
           <h3 className="font-serif text-xl font-bold">{teacher.name}</h3>
           <p className="mt-1 text-sm text-muted">{teacher.subjects?.join("・")}</p>
         </div>
@@ -24,8 +26,11 @@ export function TeacherPlate({
           <StatusBadge status={teacher.availability} minutes={teacher.availableInMinutes} />
         ) : null}
       </div>
+      {typeof activeCount === "number" ? (
+        <p className="mt-3 text-sm">現在対応中：{activeCount}件</p>
+      ) : null}
       {teacher.specialties?.length ? (
-        <p className="mt-3 text-sm">専門：{teacher.specialties.join("、")}</p>
+        <p className="mt-1 text-sm">専門：{teacher.specialties.join("、")}</p>
       ) : null}
       {teacher.note ? <p className="mt-2 text-xs text-muted">{teacher.note}</p> : null}
       {reasons?.length ? (

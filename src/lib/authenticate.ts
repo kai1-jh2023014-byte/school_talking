@@ -35,7 +35,7 @@ export function authenticate(
   const user = users.find(
     (item) => item.role === role && normalizeLoginId(item.loginId) === loginId,
   );
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user || user.status === "disabled" || !verifyPassword(password, user.passwordHash)) {
     return {
       ok: false,
       status: 401,
