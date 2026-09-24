@@ -171,6 +171,11 @@ function AskForm() {
               <UrgencyChip urgency={classification.urgency} />
             </div>
             <p className="mt-4 text-sm">{classification.summary}</p>
+            {classification.confidenceBand === "mid" ? (
+              <p className="mt-2 text-xs text-muted">
+                科目が違っていれば、質問文を直すか、最初の画面で科目を指定してください。
+              </p>
+            ) : null}
             <ul className="mt-4 space-y-1 text-sm text-muted">
               {classification.reasons.map((reason) => (
                 <li key={reason}>・{reason}</li>

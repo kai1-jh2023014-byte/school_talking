@@ -42,12 +42,15 @@ describe("classifyQuestion", () => {
 
 describe("classifyQuestionSafe", () => {
   it("returns the rule classifier when no API key is set", async () => {
-    const previous = process.env.OPENAI_API_KEY;
+    const previousOpen = process.env.OPENAI_API_KEY;
+    const previousJev = process.env.TYPESAFE_API_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.TYPESAFE_API_KEY;
     const result = await classifyQuestionSafe("二次関数の最大値の求め方がわかりません");
     expect(result.subject).toBe("数学");
     expect(result.topic).toBe("二次関数");
     expect(result.source).toBe("rules");
-    if (previous) process.env.OPENAI_API_KEY = previous;
+    if (previousOpen) process.env.OPENAI_API_KEY = previousOpen;
+    if (previousJev) process.env.TYPESAFE_API_KEY = previousJev;
   });
 });
