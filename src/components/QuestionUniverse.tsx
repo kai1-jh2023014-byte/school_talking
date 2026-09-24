@@ -148,6 +148,7 @@ export function QuestionUniverse({ data }: { data: UniversePayload }) {
                     point={point}
                     color={color}
                     stars={stars}
+                    focused={Boolean(selectedSubject)}
                     selection={selection}
                     onSelect={setSelection}
                   />
@@ -195,6 +196,7 @@ export function QuestionUniverse({ data }: { data: UniversePayload }) {
                     fill="#fffaf1"
                     fontSize="13"
                     fontWeight="600"
+                    style={{ pointerEvents: "none" }}
                   >
                     {planet.subject}
                   </text>
@@ -238,6 +240,7 @@ function SatelliteSystem({
   point,
   color,
   stars,
+  focused,
   selection,
   onSelect,
 }: {
@@ -246,6 +249,7 @@ function SatelliteSystem({
   point: { x: number; y: number };
   color: string;
   stars: { star: UniverseStar; point: { x: number; y: number } }[];
+  focused: boolean;
   selection: Selection;
   onSelect: (selection: Selection) => void;
 }) {
@@ -260,18 +264,12 @@ function SatelliteSystem({
       {stars.map(({ star, point: starPoint }) => {
         const active = selection.kind === "star" && selection.id === star.id;
         return (
-          <circle
+          <g
             key={star.id}
-            cx={starPoint.x}
-            cy={starPoint.y}
-            r={active ? 4.2 : star.recent ? 3.1 : 2.4}
-            fill={star.recent ? "#fff6d2" : "#d7deea"}
-            stroke={active ? "#fffaf1" : "none"}
-            strokeWidth={active ? 1.4 : 0}
             className="cursor-pointer"
             role="button"
             tabIndex={0}
-            aria-label={`${star.summary}`}
+            aria-label={star.summary}
             onClick={(event) => {
               event.stopPropagation();
               onSelect({ kind: "star", subject: planet.subject, topic: satellite.topic, id: star.id });
@@ -282,7 +280,18 @@ function SatelliteSystem({
                 onSelect({ kind: "star", subject: planet.subject, topic: satellite.topic, id: star.id });
               }
             }}
-          />
+          >
+            <circle cx={starPoint.x} cy={starPoint.y} r="8" fill="transparent" />
+            <circle
+              cx={starPoint.x}
+              cy={starPoint.y}
+              r={active ? 4.2 : star.recent ? 3.1 : 2.4}
+              fill={star.recent ? "#fff6d2" : "#d7deea"}
+              stroke={active ? "#fffaf1" : "none"}
+              strokeWidth={active ? 1.4 : 0}
+            />
+            <title>{star.summary}</title>
+          </g>
         );
       })}
       <g
@@ -312,9 +321,18 @@ function SatelliteSystem({
           stroke={selected && selection.kind === "satellite" ? "#fffaf1" : color}
           strokeWidth={selected && selection.kind === "satellite" ? 2.4 : 1.4}
         />
-        <text x={point.x} y={point.y + satellite.radius + 12} textAnchor="middle" fill="#d7deea" fontSize="10">
-          {satellite.topic}
-        </text>
+        {focused ? (
+          <text
+            x={point.x}
+            y={point.y + satellite.radius + 13}
+            textAnchor="middle"
+            fill="#d7deea"
+            fontSize="10"
+            style={{ pointerEvents: "none" }}
+          >
+            {satellite.topic}
+          </text>
+        ) : null}
       </g>
     </g>
   );

@@ -193,5 +193,5 @@ export function starPosition(origin: Point, index: number, orbit: number): Point
 }
 
 export function satelliteOrbit(planetRadius: number, satelliteCount: number): number {
-  return planetRadius + 34 + Math.min(18, Math.max(0, satelliteCount - 3) * 4);
+  return planetRadius + 42 + Math.min(22, Math.max(0, satelliteCount - 2) * 5);
 }
