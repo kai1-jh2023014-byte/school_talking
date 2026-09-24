@@ -24,6 +24,8 @@ AIは答えを書きません。科目・分野・緊急度を整理し、いま
 
 マッチは、受付状況 → いま抱えている未処理件数 → 担当科目・専門、の順で並べます。
 
+質問の整理はサーバ側だけで行います。`TYPESAFE_API_KEY` があるときは TypeSafe の Jev（`POST /v1/systemone`）が科目・分野・緊急度だけを判断し、既存の教師マッチングに渡します。確信度が低いとき、Jev が失敗したとき、キーが無いときは、これまでどおり校内ルールで整理します。Jev に名簿・認証・待ち行列は渡しません。
+
 ## 起動
 
 ```bash
@@ -49,8 +51,12 @@ npm run dev
 | 変数 | 必須 | 説明 |
 | --- | --- | --- |
 | `SESSION_SECRET` | 本番は必須 | Cookie 署名。未設定時はデモ用の値 |
-| `OPENAI_API_KEY` | 任意 | あるときだけ分類に使います。失敗・タイムアウト（4秒）時はルールへ戻します |
+| `OPENAI_API_KEY` | 任意 | Jev キーが無いときだけ分類に使います。失敗・タイムアウト（4秒）時はルールへ戻します |
 | `OPENAI_MODEL` | 任意 | 既定は `gpt-4o-mini` |
+| `TYPESAFE_API_KEY` | 任意 | TypeSafe Jev。教科・分野・緊急度の判断だけ。キーはサーバのみ。無い・失敗・低確信度のときは校内ルールへ戻します |
+| `TYPESAFE_BASE_URL` | 任意 | 既定は `https://api.typesafe.ai` |
+| `TYPESAFE_DEFAULT_MODEL` | 任意 | 未設定なら `GET /v1/models` で取得します |
+| `TYPESAFE_TIMEOUT_MS` | 任意 | Jev の待ち上限。既定は `4000` |
 | `BCRYPT_ROUNDS` | 任意 | 既定は `10`。以前の SHA-256 ハッシュはログイン時に差し替えます |
 
 APIキーが無くても、分類・投稿・回答は動きます。
@@ -90,7 +96,7 @@ APIキーが無くても、分類・投稿・回答は動きます。
 
 - Next.js 14（App Router）と TypeScript、Tailwind
 - 保存は `data/store.json`（プロセス内で書き込みを直列化。初回起動時に確認用データを作成）
-- 分類は校内ルールが本体。OpenAI は任意の補助で、答えは出さない
+- 分類は校内ルールが本体。Jev（TypeSafe System One）は任意。キーが無いときは OpenAI も任意。どれも答えは出さない
 - 認証は HMAC 付き httpOnly Cookie。役割は Cookie に入れ、Edge の middleware で画面を分ける
 - パスワードは bcrypt。以前の SHA-256 はログイン時に再ハッシュ
 - 生徒・先生の画面は 15 秒ごとに更新（WebSocket は使わない）

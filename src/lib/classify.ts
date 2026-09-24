@@ -202,7 +202,15 @@ function detectQuestionType(text: string): QuestionType {
   return "その他";
 }
 
-function makeSummary(body: string, subject: string, topic: string): string {
+export function deptForSubject(subject: string): string {
+  return SUBJECT_RULES.find((rule) => rule.name === subject)?.dept ?? (subject === "その他" ? "担任・学年" : `${subject}科`);
+}
+
+export function topicsForSubject(subject: string): string[] {
+  return SUBJECT_RULES.find((rule) => rule.name === subject)?.topics.map((topic) => topic.name) ?? [];
+}
+
+export function makeSummary(body: string, subject: string, topic: string): string {
   const compact = body.replace(/\s+/g, " ").trim();
   if (compact.length <= 42) return compact;
   return `${subject}の${topic}についての質問`;
@@ -380,17 +388,44 @@ async function classifyWithOpenAI(body: string, subjectHint?: string): Promise<C
 export async function classifyQuestionSafe(
   body: string,
   subjectHint?: string,
+  deps?: {
+    classifyWithJev?: (input: {
+      body: string;
+      subjectHint?: string;
+      rules: Classification;
+    }) => Promise<Classification | null>;
+  },
 ): Promise<Classification> {
+  let rules: Classification;
   try {
-    const ai = await classifyWithOpenAI(body, subjectHint);
-    if (ai) return ai;
+    rules = classifyQuestion(body, subjectHint);
   } catch {
-    // fall through to rules
+    rules = fallbackClassification(body, subjectHint);
   }
+
   try {
-    const result = classifyQuestion(body, subjectHint);
-    const source: ClassifySource = process.env.OPENAI_API_KEY ? "fallback" : "rules";
-    return { ...result, source };
+    const classifyWithJev =
+      deps?.classifyWithJev ?? (await import("./jev/classifier")).classifyWithJev;
+    const jev = await classifyWithJev({ body, subjectHint, rules });
+    if (jev) return jev;
+  } catch {
+    // Jev is optional. Keep going.
+  }
+
+  if (!process.env.TYPESAFE_API_KEY) {
+    try {
+      const ai = await classifyWithOpenAI(body, subjectHint);
+      if (ai) return ai;
+    } catch {
+      // fall through to rules
+    }
+  }
+
+  try {
+    const source: ClassifySource = process.env.TYPESAFE_API_KEY || process.env.OPENAI_API_KEY
+      ? "fallback"
+      : "rules";
+    return { ...rules, source };
   } catch {
     return fallbackClassification(body, subjectHint);
   }

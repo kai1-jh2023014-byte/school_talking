@@ -8,7 +8,9 @@ export type Urgency = "low" | "normal" | "high";
 
 export type QuestionType = "解法" | "概念" | "計算" | "確認" | "その他";
 
-export type ClassifySource = "rules" | "ai" | "fallback";
+export type ClassifySource = "rules" | "ai" | "jev" | "fallback";
+
+export type ConfidenceBand = "high" | "mid" | "low";
 
 export type QuestionStatus =
   | "submitted"
@@ -76,6 +78,9 @@ export type Classification = {
   questionType: QuestionType;
   reasons: string[];
   source: ClassifySource;
+  confidence?: number;
+  confidenceBand?: ConfidenceBand;
+  classifyModel?: string;
 };
 
 export type Question = {
