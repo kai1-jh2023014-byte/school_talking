@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { BarList, HourBars } from "@/components/Charts";
@@ -61,6 +62,14 @@ function AdminDashboard() {
       </div>
 
       {error ? <p className="text-rose">{error}</p> : null}
+
+      <Link href="/admin/universe" className="card block bg-navy p-6 text-cream transition hover:bg-ink">
+        <p className="text-xs tracking-[0.2em] text-gold">QUESTION UNIVERSE</p>
+        <h2 className="mt-1 font-serif text-2xl">質問宇宙を開く</h2>
+        <p className="mt-2 text-sm text-cream/80">
+          学校全体の「分からない」を、教科の惑星と分野の衛星、質問の星として見られます。分析の数字はそのまま、こちらは空間での見方です。
+        </p>
+      </Link>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
