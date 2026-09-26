@@ -63,13 +63,20 @@ function AdminDashboard() {
 
       {error ? <p className="text-rose">{error}</p> : null}
 
-      <Link href="/admin/universe" className="card block bg-navy p-6 text-cream transition hover:bg-ink">
-        <p className="text-xs tracking-[0.2em] text-gold">QUESTION UNIVERSE</p>
-        <h2 className="mt-1 font-serif text-2xl">質問宇宙を開く</h2>
-        <p className="mt-2 text-sm text-cream/80">
-          集計から注目候補を見つけ、対応を人が判断するための画面です。数字とAI分析は分けて出します。
-        </p>
-      </Link>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Link href="/admin/staffroom" className="card block bg-navy p-6 text-cream transition hover:bg-ink">
+          <p className="text-xs tracking-[0.2em] text-gold">職員室</p>
+          <h2 className="mt-1 font-serif text-2xl">確認候補から次の手を選ぶ</h2>
+          <p className="mt-2 text-sm text-cream/80">
+            質問・理解チェック・先生からの問いを並べ、授業確認や出題検討は人が実行します。
+          </p>
+        </Link>
+        <Link href="/admin/universe" className="card block p-6 transition hover:-translate-y-0.5">
+          <p className="text-xs tracking-[0.2em] text-terracotta">QUESTION UNIVERSE</p>
+          <h2 className="mt-1 font-serif text-2xl">関係図を開く</h2>
+          <p className="mt-2 text-sm text-muted">教科から分野へ。数字とAI分析は分けて出します。</p>
+        </Link>
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
