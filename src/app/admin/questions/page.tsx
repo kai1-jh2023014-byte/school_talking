@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Guard } from "@/components/Guard";
 import { QuestionStatusChip, UrgencyChip } from "@/components/QuestionChips";
 import { api } from "@/lib/client";
@@ -29,16 +30,19 @@ const STATUS_FILTERS: { id: "all" | QuestionStatus; label: string }[] = [
 export default function AdminQuestionsPage() {
   return (
     <Guard role="admin">
-      <History />
+      <Suspense fallback={<p className="text-muted">読み込み中…</p>}>
+        <History />
+      </Suspense>
     </Guard>
   );
 }
 
 function History() {
+  const params = useSearchParams();
   const [questions, setQuestions] = useState<Row[]>([]);
-  const [subject, setSubject] = useState("all");
+  const [subject, setSubject] = useState(params.get("subject") || "all");
   const [status, setStatus] = useState<(typeof STATUS_FILTERS)[number]["id"]>("all");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(params.get("topic") || "");
   const [error, setError] = useState("");
 
   useEffect(() => {

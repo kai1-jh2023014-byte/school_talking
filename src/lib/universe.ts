@@ -1,8 +1,16 @@
+import { SUBJECT_RULES } from "./classify";
 import { SUBJECTS } from "./constants";
 import { normalizeStatus } from "./questions";
 import type { Question, QuestionStatus, StoreData } from "./types";
 
+export const SAMPLE_LIMIT = 8;
 export const UNIVERSE_WINDOW_DAYS = 30;
+
+export type ClusterStat = {
+  name: string;
+  count: number;
+  samples: { id: string; summary: string; createdAt: string }[];
+};
 
 export type UniverseGrowth = {
   recentCount: number;
@@ -24,6 +32,7 @@ export type UniverseSatellite = {
   count: number;
   radius: number;
   growth: UniverseGrowth;
+  clusters: ClusterStat[];
   stars: UniverseStar[];
 };
 
@@ -35,6 +44,15 @@ export type UniversePlanet = {
   satellites: UniverseSatellite[];
 };
 
+export type UniverseViewSatellite = Omit<UniverseSatellite, "stars"> & {
+  sampleCount: number;
+  samples: UniverseStar[];
+};
+
+export type UniverseViewPlanet = Omit<UniversePlanet, "satellites"> & {
+  satellites: UniverseViewSatellite[];
+};
+
 export type UniversePayload = {
   total: number;
   recentTotal: number;
@@ -43,6 +61,25 @@ export type UniversePayload = {
   windowDays: number;
   planets: UniversePlanet[];
 };
+
+export type Focus =
+  | { level: 1 }
+  | { level: 2; subject: string }
+  | { level: 3; subject: string; topic: string }
+  | { level: 4; subject: string; topic: string; cluster: string };
+
+export type GraphNode = {
+  id: string;
+  kind: "school" | "subject" | "topic" | "cluster" | "question";
+  label: string;
+  x: number;
+  y: number;
+  r: number;
+  count: number;
+  attention?: boolean;
+};
+
+export type GraphEdge = { from: string; to: string };
 
 export type Point = { x: number; y: number };
 
@@ -75,6 +112,42 @@ export function makeGrowth(recentCount: number, previousCount: number): Universe
     delta: recentCount - previousCount,
     label: growthLabel(recentCount, previousCount),
   };
+}
+
+function clusterName(raw: string): string {
+  if (raw === "最大値" || raw === "最小値") return "最大値・最小値";
+  return raw;
+}
+
+export function clusterQuestions(subject: string, topic: string, questions: Question[]): ClusterStat[] {
+  const rule = SUBJECT_RULES.find((item) => item.name === subject);
+  const topicRule = rule?.topics.find((item) => item.name === topic);
+  const keys = (topicRule?.keys ?? []).filter((key) => key !== topic);
+  const buckets = new Map<string, Question[]>();
+
+  for (const question of questions) {
+    const hay = `${question.summary} ${question.body}`.toLowerCase();
+    const hit = keys.find((key) => hay.includes(key.toLowerCase()));
+    const name = clusterName(hit ?? "その他");
+    const list = buckets.get(name) ?? [];
+    list.push(question);
+    buckets.set(name, list);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([name, list]) => ({
+      name,
+      count: list.length,
+      samples: [...list]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, SAMPLE_LIMIT)
+        .map((question) => ({
+          id: question.id,
+          summary: question.summary,
+          createdAt: question.createdAt,
+        })),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ja"));
 }
 
 function inWindow(iso: string, start: Date, end: Date): boolean {
@@ -117,6 +190,7 @@ export function buildUniverse(store: StoreData, now = new Date()): UniversePaylo
             topicQuestions.filter((question) => inWindow(question.createdAt, recentStart, now)).length,
             topicQuestions.filter((question) => inWindow(question.createdAt, previousStart, recentStart)).length,
           ),
+          clusters: clusterQuestions(subject, topic, topicQuestions),
           stars,
         };
       })
@@ -194,4 +268,149 @@ export function starPosition(origin: Point, index: number, orbit: number): Point
 
 export function satelliteOrbit(planetRadius: number, satelliteCount: number): number {
   return planetRadius + 42 + Math.min(22, Math.max(0, satelliteCount - 2) * 5);
+}
+
+export function toUniverseView(payload: UniversePayload): { planets: UniverseViewPlanet[] } & Omit<UniversePayload, "planets"> {
+  return {
+    ...payload,
+    planets: payload.planets.map((planet) => ({
+      ...planet,
+      satellites: planet.satellites.map((satellite) => ({
+        topic: satellite.topic,
+        count: satellite.count,
+        radius: satellite.radius,
+        growth: satellite.growth,
+        clusters: satellite.clusters,
+        sampleCount: satellite.stars.length,
+        samples: satellite.stars.slice(0, SAMPLE_LIMIT),
+      })),
+    })),
+  };
+}
+
+function ring(origin: Point, index: number, total: number, radius: number, phase = 0): Point {
+  const angle = -Math.PI / 2 + phase + (2 * Math.PI * index) / Math.max(total, 1);
+  return { x: origin.x + radius * Math.cos(angle), y: origin.y + radius * Math.sin(angle) };
+}
+
+export function layoutScene(
+  payload: { planets: Array<{ subject: string; count: number; radius: number; satellites: Array<{ topic: string; count: number; radius: number; clusters: ClusterStat[] }> }> },
+  focus: Focus,
+  attentionKeys: string[],
+): { nodes: GraphNode[]; edges: GraphEdge[]; camera: { x: number; y: number; w: number; h: number } } {
+  const CX = 460;
+  const CY = 278;
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  const attention = new Set(attentionKeys);
+  if (focus.level === 1) {
+    nodes.push({ id: "school", kind: "school", label: "学校", x: CX, y: CY, r: 28, count: 0 });
+  }
+
+  const planets = payload.planets;
+  planets.forEach((planet, index) => {
+    const inward = attention.has(planet.subject);
+    const seat = planetPosition(index, planets.length, CX, CY, inward ? 200 : 268, inward ? 148 : 196);
+    const planetId = `subject:${planet.subject}`;
+    if (focus.level === 1 || ("subject" in focus && focus.subject === planet.subject)) {
+      nodes.push({
+        id: planetId,
+        kind: "subject",
+        label: planet.subject,
+        x: focus.level === 1 ? seat.x : CX,
+        y: focus.level === 1 ? seat.y : CY,
+        r: planet.radius,
+        count: planet.count,
+        attention: inward,
+      });
+      edges.push({ from: "school", to: planetId });
+    }
+  });
+
+  if (focus.level >= 2 && "subject" in focus) {
+    const planet = planets.find((item) => item.subject === focus.subject);
+    const origin = nodes.find((node) => node.id === `subject:${focus.subject}`) ?? {
+      id: `subject:${focus.subject}`,
+      kind: "subject" as const,
+      label: focus.subject,
+      x: CX,
+      y: CY,
+      r: 36,
+      count: 0,
+    };
+    planet?.satellites.forEach((satellite, index) => {
+      const topicId = `topic:${planet.subject}/${satellite.topic}`;
+      const seat = ring(origin, index, planet.satellites.length, satelliteOrbit(origin.r, planet.satellites.length));
+      if (focus.level === 2 || ("topic" in focus && focus.topic === satellite.topic)) {
+        nodes.push({
+          id: topicId,
+          kind: "topic",
+          label: satellite.topic,
+          x: focus.level === 2 ? seat.x : CX + 10,
+          y: focus.level === 2 ? seat.y : CY + 10,
+          r: satellite.radius,
+          count: satellite.count,
+          attention: attention.has(`${planet.subject}/${satellite.topic}`) || attention.has(satellite.topic),
+        });
+        edges.push({ from: origin.id, to: topicId });
+      }
+    });
+  }
+
+  if (focus.level >= 3 && "topic" in focus) {
+    const planet = planets.find((item) => item.subject === focus.subject);
+    const satellite = planet?.satellites.find((item) => item.topic === focus.topic);
+    const origin = nodes.find((node) => node.id === `topic:${focus.subject}/${focus.topic}`);
+    satellite?.clusters.forEach((cluster, index) => {
+      const clusterId = `cluster:${focus.subject}/${focus.topic}/${cluster.name}`;
+      if (!origin) return;
+      const seat = ring(origin, index, satellite.clusters.length, origin.r + 56);
+      if (focus.level === 3 || ("cluster" in focus && focus.cluster === cluster.name)) {
+        nodes.push({
+          id: clusterId,
+          kind: "cluster",
+          label: cluster.name,
+          x: focus.level === 3 ? seat.x : CX,
+          y: focus.level === 3 ? seat.y : CY - 40,
+          r: bodyRadius(cluster.count, 10, 20),
+          count: cluster.count,
+        });
+        edges.push({ from: origin.id, to: clusterId });
+      }
+    });
+  }
+
+  if (focus.level === 4 && "cluster" in focus) {
+    const planet = planets.find((item) => item.subject === focus.subject);
+    const satellite = planet?.satellites.find((item) => item.topic === focus.topic);
+    const cluster = satellite?.clusters.find((item) => item.name === focus.cluster);
+    const origin = nodes.find((node) => node.id === `cluster:${focus.subject}/${focus.topic}/${focus.cluster}`);
+    cluster?.samples.forEach((sample, index) => {
+      if (!origin) return;
+      const seat = ring(origin, index, cluster.samples.length, 70);
+      nodes.push({
+        id: `question:${sample.id}`,
+        kind: "question",
+        label: sample.summary,
+        x: seat.x,
+        y: seat.y,
+        r: 6,
+        count: 1,
+      });
+      edges.push({ from: origin.id, to: `question:${sample.id}` });
+    });
+  }
+
+  const visible = nodes.filter((node) => node.kind !== "school" || focus.level === 1);
+  const xs = visible.map((node) => node.x);
+  const ys = visible.map((node) => node.y);
+  const minX = Math.min(...xs, CX) - 80;
+  const maxX = Math.max(...xs, CX) + 80;
+  const minY = Math.min(...ys, CY) - 70;
+  const maxY = Math.max(...ys, CY) + 70;
+  return {
+    nodes,
+    edges,
+    camera: { x: minX, y: minY, w: Math.max(420, maxX - minX), h: Math.max(320, maxY - minY) },
+  };
 }
