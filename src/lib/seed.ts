@@ -552,7 +552,7 @@ export function createSeedQuestions(): Question[] {
 
 export function createSeedStore(): StoreData {
   return {
-    version: 3,
+    version: 4,
     users: createSeedUsers(),
     questions: createSeedQuestions(),
   };

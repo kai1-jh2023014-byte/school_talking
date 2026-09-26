@@ -112,10 +112,42 @@ export type PublicUser = Omit<User, "passwordHash">;
 
 export type SafeTeacher = Omit<User, "passwordHash" | "loginId">;
 
+export type AttentionArea = {
+  subject: string;
+  topic: string;
+  reasons: string[];
+  confidence: ConfidenceBand;
+};
+
+export type SuggestedAction = {
+  target: string;
+  action: string;
+  reason: string;
+  kind: "materials" | "share" | "queue" | "wait";
+};
+
+export type SchoolAnalysis = {
+  summary: string;
+  attentionAreas: AttentionArea[];
+  suggestedActions: SuggestedAction[];
+  model?: string;
+  source: "jev" | "none";
+};
+
+export type CachedSchoolInsight = {
+  fingerprint: string;
+  analyzedAt: string;
+  status: "ok" | "unavailable" | "sparse" | "error";
+  message?: string;
+  analysis: SchoolAnalysis | null;
+  errorCode?: string;
+};
+
 export type StoreData = {
   version?: number;
   users: User[];
   questions: Question[];
+  schoolInsight?: CachedSchoolInsight;
 };
 
 export type TeacherMatch = {
