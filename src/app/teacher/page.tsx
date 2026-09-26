@@ -122,6 +122,19 @@ function TeacherHome() {
 
       {error ? <p className="text-rose">{error}</p> : null}
 
+      <section className="grid gap-3 sm:grid-cols-2">
+        <Link href="/teacher/universe" className="card block p-5 hover:-translate-y-0.5">
+          <p className="text-xs tracking-[0.2em] text-terracotta">CLASS UNIVERSE</p>
+          <h2 className="mt-2 font-serif text-xl">クラスの問いを見る</h2>
+          <p className="mt-2 text-sm text-muted">質問・理解チェック・先生からの問いを、確認候補として並べます。</p>
+        </Link>
+        <Link href="/teacher/prompts/new" className="card block p-5 hover:-translate-y-0.5">
+          <p className="text-xs tracking-[0.2em] text-terracotta">問いを送る</p>
+          <h2 className="mt-2 font-serif text-xl">生徒へ問い・理解チェック</h2>
+          <p className="mt-2 text-sm text-muted">質問しない生徒の状態も、観測できるデータとして集めます。</p>
+        </Link>
+      </section>
+
       <section>
         <div className="mb-4 flex flex-wrap gap-2">
           {TABS.map((item) => (

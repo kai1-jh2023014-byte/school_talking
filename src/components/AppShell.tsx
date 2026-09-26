@@ -11,14 +11,18 @@ const NAV: Record<PublicUser["role"], { href: string; label: string }[]> = {
   student: [
     { href: "/student", label: "ホーム" },
     { href: "/student/ask", label: "質問する" },
+    { href: "/student/universe", label: "My Universe" },
   ],
   teacher: [
     { href: "/teacher", label: "受付と質問" },
+    { href: "/teacher/universe", label: "Class Universe" },
+    { href: "/teacher/prompts/new", label: "問いを送る" },
     { href: "/teacher/history", label: "対応した質問" },
   ],
   admin: [
     { href: "/admin", label: "分析" },
-    { href: "/admin/universe", label: "質問宇宙" },
+    { href: "/admin/staffroom", label: "職員室" },
+    { href: "/admin/universe", label: "Question Universe" },
     { href: "/admin/users", label: "名簿" },
     { href: "/admin/questions", label: "質問履歴" },
   ],

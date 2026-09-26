@@ -15,16 +15,16 @@ const WALLS = [
   {
     title: "情報の壁",
     problem: "誰に聞けばいいかわからない",
-    solve: "AIが質問内容から、適切な先生を探す",
+    solve: "AIが質問内容から、適切な先生を探す。問いを学校全体の学習状態にもつなぐ",
   },
 ];
 
 const STEPS = [
-  "質問する",
-  "AIが内容を整理",
-  "対応可能な先生を提示",
-  "先生が都合のよい時間に対応",
-  "質問データが学校改善へ",
+  "生徒が質問する",
+  "先生が受け、必要ならクラスへ問いを返す",
+  "理解チェックで、質問しない生徒の状態も集める",
+  "Question Universe が確認候補を示す",
+  "授業・確認問題・テストの検討から、また新しい問いが生まれる",
 ];
 
 export default function HomePage() {
@@ -49,7 +49,7 @@ export default function HomePage() {
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-navy/80">
           先生を探す必要はない。質問が、先生を見つける。
-          生徒と先生のあいだにある小さな壁を、AIとデジタルでつなぐ学校内プラットフォームです。
+          生徒から先生へ、先生から生徒へ。学校の中で生まれる「問い」を循環させ、学習状態・授業・職員室・出題検討までつなぐ基盤です。
         </p>
         <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-2">
           <Link href="/login/student" className="card block p-5 hover:-translate-y-0.5">
@@ -92,7 +92,7 @@ export default function HomePage() {
           </div>
           <div className="bg-navy p-8 text-cream">
             <p className="text-xs tracking-[0.2em] text-[#f3c19a]">つなぐ</p>
-            <h2 className="mt-2 font-serif text-3xl">質問が先生を見つける</h2>
+            <h2 className="mt-2 font-serif text-3xl">問いが、学校をつなぐ</h2>
             <ol className="mt-6 space-y-2 text-sm text-cream/80">
               {STEPS.map((step, index) => (
                 <li key={step}>
@@ -108,13 +108,13 @@ export default function HomePage() {
         <h2 className="font-serif text-3xl">AIは答えを出さない</h2>
         <p className="mt-4 max-w-3xl leading-relaxed text-muted">
           投稿された質問から科目・分野・緊急度を整理し、対応できる先生へつなぎます。
-          人と人のあいだにあるコミュニケーションの壁を取り除くために、AIを使います。
+          学校全体の確認候補は、質問本文を大量に送るのではなく、件数の集計から人が判断します。
         </p>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {[
-            { t: "生徒支援", d: "聞きたい瞬間に、適切な先生へ届く" },
-            { t: "教員支援", d: "自分の都合で質問を整理し、対応できる" },
-            { t: "学校改善", d: "つまずきがデータになり、授業が変わる" },
+            { t: "生徒支援", d: "聞きたい瞬間に届く。自分の問いと理解チェックから復習候補を見る" },
+            { t: "教員支援", d: "都合よく受け、クラスへ問いを返し、確認候補から授業を検討する" },
+            { t: "職員室", d: "学校の問いを俯瞰し、追加確認・出題検討まで人が決める" },
           ].map((item) => (
             <article key={item.t} className="rounded-3xl border border-line bg-cream/70 p-5">
               <h3 className="font-serif text-xl">{item.t}</h3>
@@ -125,7 +125,7 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-line py-10 text-center text-sm text-muted">
-        つなぐ — 生徒と先生で入口を分けた、学校内の質問プラットフォーム
+        つなぐ — 学校の中の問いを、生徒・先生・職員室まで循環させる
       </footer>
     </div>
   );
