@@ -68,9 +68,10 @@ export function canViewClass(user: User, homeroom: string, store: StoreData): bo
 }
 
 export function isAudienceMember(student: User, prompt: Prompt): boolean {
-  if (prompt.audience.type === "class") return student.homeroom === prompt.audience.homeroom;
-  if (prompt.audience.type === "grade") return student.grade === prompt.audience.grade;
-  return prompt.audience.studentIds.includes(student.id);
+  const audience = prompt.audience;
+  if (audience.type === "class") return student.homeroom === audience.homeroom;
+  if (audience.type === "grade") return student.grade === audience.grade;
+  return audience.studentIds.includes(student.id);
 }
 
 export function pendingPromptsFor(store: StoreData, student: User): Prompt[] {
@@ -197,9 +198,10 @@ export function buildClassUniverse(store: StoreData, homeroom: string) {
   const ids = new Set(students.map((user) => user.id));
   const questions = store.questions.filter((question) => ids.has(question.studentId));
   const classPrompts = promptsOf(store).filter((prompt) => {
-    if (prompt.audience.type === "class") return prompt.audience.homeroom === homeroom;
-    if (prompt.audience.type === "grade") return students.some((user) => user.grade === prompt.audience.grade);
-    return prompt.audience.studentIds.some((id) => ids.has(id));
+    const audience = prompt.audience;
+    if (audience.type === "class") return audience.homeroom === homeroom;
+    if (audience.type === "grade") return students.some((user) => user.grade === audience.grade);
+    return audience.studentIds.some((id) => ids.has(id));
   });
   const keys = new Set([
     ...questions.map((question) => `${question.subject}:::${question.topic}`),
