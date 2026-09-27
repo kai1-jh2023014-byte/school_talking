@@ -1,6 +1,7 @@
 import { DEMO_PASSWORD, LOGIN_ID_BY_USER_ID } from "./demo-accounts";
 import { hashPassword } from "./hash";
-import type { Question, StoreData, User } from "./types";
+import type { Prompt, PromptResponse, Question, StoreData, User } from "./types";
+import { CHECK_OPTIONS } from "./prompts";
 
 function hoursAgo(hours: number): string {
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
@@ -56,6 +57,7 @@ export function createSeedUsers(): User[] {
       name: "田中 美咲",
       role: "teacher",
       subjects: ["数学"],
+      homerooms: ["2年A組", "2年B組"],
       specialties: ["二次関数", "微分・積分", "三角関数"],
       availability: "available",
       note: "放課後は職員室にいます",
@@ -551,10 +553,81 @@ export function createSeedQuestions(): Question[] {
 }
 
 export function createSeedStore(): StoreData {
+  const prompts: Prompt[] = [
+    {
+      id: "p-check-1",
+      kind: "understanding_check",
+      teacherId: "u-math-a",
+      subject: "数学",
+      topic: "二次関数",
+      body: "今日の二次関数の内容を、どのくらい理解できましたか？",
+      options: CHECK_OPTIONS,
+      allowFreeText: false,
+      audience: { type: "class", homeroom: "2年A組" },
+      createdAt: hoursAgo(6),
+      status: "open",
+    },
+    {
+      id: "p-ask-1",
+      kind: "teacher_question",
+      teacherId: "u-math-a",
+      subject: "数学",
+      topic: "二次関数",
+      body: "二次関数でいちばん難しいと感じるのはどこですか？",
+      options: [
+        { id: "graph", label: "グラフ" },
+        { id: "complete", label: "平方完成" },
+        { id: "max", label: "最大・最小" },
+        { id: "range", label: "変域" },
+        { id: "other", label: "その他" },
+      ],
+      allowFreeText: true,
+      audience: { type: "class", homeroom: "2年A組" },
+      createdAt: hoursAgo(5),
+      status: "open",
+    },
+    {
+      id: "p-check-2",
+      kind: "understanding_check",
+      teacherId: "u-math-a",
+      subject: "数学",
+      topic: "因数分解",
+      body: "因数分解は、自力で解けそうですか？",
+      options: [
+        { id: "alone", label: "自力で解けそう" },
+        { id: "hint", label: "ヒントがあればできそう", anxious: true },
+        { id: "hard", label: "まだ難しい", anxious: true },
+      ],
+      allowFreeText: false,
+      audience: { type: "class", homeroom: "2年A組" },
+      createdAt: hoursAgo(2),
+      status: "open",
+    },
+  ];
+  const promptResponses: PromptResponse[] = [
+    {
+      id: "pr-1",
+      promptId: "p-check-1",
+      studentId: "u-student-1",
+      optionId: "uneasy",
+      createdAt: hoursAgo(4),
+    },
+    {
+      id: "pr-2",
+      promptId: "p-ask-1",
+      studentId: "u-student-1",
+      optionId: "max",
+      freeText: "頂点の求め方がまだ曖昧です",
+      createdAt: hoursAgo(3),
+    },
+  ];
   return {
-    version: 4,
+    version: 5,
     users: createSeedUsers(),
     questions: createSeedQuestions(),
+    prompts,
+    promptResponses,
+    followUps: [],
   };
 }
 

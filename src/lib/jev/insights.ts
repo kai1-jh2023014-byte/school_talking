@@ -80,6 +80,9 @@ export function buildInsightQuestions(snapshot: SchoolSnapshot): Record<string, 
         share: "Share the cluster with teachers who already match that subject",
         queue: "Review the existing question list for that topic",
         materials: "Consider extra explanation materials for the concentrated cluster",
+        prompt: "A teacher question or understanding check to the class is worth considering",
+        test: "The field is a candidate to consider for a future quiz, not a required item",
+        review: "In-class follow-up is worth considering",
         wait: "Wait until more questions accumulate",
       },
     },
@@ -94,6 +97,8 @@ export function reasonsForTopic(topic: TopicSnapshot, pattern: string): string[]
   if (top && top.name !== "その他" && top.count >= 2 && (pattern === "concentration" || pattern === "mixed")) {
     reasons.push(`${top.name}に質問が集まっています（${top.count}件）`);
   }
+  if (topic.checkAnxious > 0) reasons.push(`理解チェックで不安の回答が${topic.checkAnxious}件あります`);
+  if (topic.promptAnswers > 0) reasons.push(`先生からの問いに${topic.promptAnswers}件の回答があります`);
   if (reasons.length === 0) reasons.push(`直近${topic.recentCount}件の質問があります`);
   return reasons;
 }
@@ -124,6 +129,30 @@ export function actionCopy(kind: SuggestedAction["kind"], topic: TopicSnapshot):
       reason: cluster ? `関連する質問が${cluster.count}件あります` : `質問が${topic.count}件あります`,
     };
   }
+  if (kind === "prompt" || kind === "check") {
+    return {
+      target: topic.topic,
+      kind: "prompt",
+      action: "クラスへ問いまたは理解チェックを送ることを検討する",
+      reason: "質問しない生徒の状態も、確認として集められます",
+    };
+  }
+  if (kind === "test") {
+    return {
+      target: topic.topic,
+      kind,
+      action: "次回の確認問題・テストの出題検討候補にする",
+      reason: "入れるかどうかは先生が決めます",
+    };
+  }
+  if (kind === "review") {
+    return {
+      target: topic.topic,
+      kind,
+      action: "授業内での追加確認を検討する",
+      reason: "確認候補として残します。全員が苦手だとは限りません",
+    };
+  }
   return {
     target: topic.topic,
     kind: "wait",
@@ -144,7 +173,7 @@ export function readSchoolAnalysis(result: SystemOneResult, snapshot: SchoolSnap
   const allowed = new Set([...Object.keys(topicCriteria(snapshot))]);
   if (!allowed.has(focus.choice) || !allowed.has(second.choice)) return null;
   if (!["increase", "concentration", "mixed", "none"].includes(pattern.choice)) return null;
-  if (!["share", "queue", "materials", "wait"].includes(action.choice)) return null;
+  if (!["share", "queue", "materials", "wait", "prompt", "test", "review"].includes(action.choice)) return null;
 
   if (enough.noul < 0.5 || focus.choice === NONE || pattern.choice === "none") {
     return {
@@ -235,7 +264,7 @@ export async function analyzeSchoolSnapshot(input: {
     const response = await client.systemOne({
       model,
       state: {
-        task: "Judge school-wide attention from aggregated question counts. Do not solve questions. Do not blame teachers.",
+        task: "Judge school-wide confirmation candidates from aggregated counts. Do not label weaknesses. Do not blame teachers.",
         stats: snapshotForJev(snapshot),
       },
       questions: buildInsightQuestions(snapshot),

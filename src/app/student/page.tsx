@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { usePoll } from "@/hooks/usePoll";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
-import type { Question, SafeTeacher } from "@/lib/types";
+import type { Prompt, Question, SafeTeacher } from "@/lib/types";
 
 type TeacherRow = SafeTeacher & { activeCount?: number };
 type QuestionRow = Question & {
@@ -27,16 +27,19 @@ export default function StudentHomePage() {
 function StudentHome() {
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [pending, setPending] = useState<Prompt[]>([]);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
     Promise.all([
       api<{ teachers: TeacherRow[] }>("/api/teachers"),
       api<{ questions: QuestionRow[] }>("/api/questions?mine=1"),
+      api<{ pending: Prompt[] }>("/api/prompts"),
     ])
-      .then(([t, q]) => {
+      .then(([t, q, p]) => {
         setTeachers(t.teachers);
         setQuestions(q.questions);
+        setPending(p.pending);
         setError("");
       })
       .catch((err) => setError(err instanceof Error ? err.message : "読み込みに失敗しました"));
@@ -73,6 +76,15 @@ function StudentHome() {
       ) : null}
 
       {error ? <p className="text-rose">{error}</p> : null}
+
+      {pending.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="font-serif text-2xl">先生からの問い</h2>
+          {pending.map((prompt) => (
+            <PromptCard key={prompt.id} prompt={prompt} onDone={load} />
+          ))}
+        </section>
+      ) : null}
 
       <section>
         <div className="mb-4 flex items-end justify-between">
@@ -125,5 +137,63 @@ function StudentHome() {
         </div>
       </section>
     </div>
+  );
+}
+
+function PromptCard({ prompt, onDone }: { prompt: Prompt; onDone: () => void }) {
+  const [optionId, setOptionId] = useState("");
+  const [freeText, setFreeText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/api/prompts/${prompt.id}/respond`, {
+        method: "POST",
+        body: JSON.stringify({ optionId: optionId || undefined, freeText: freeText || undefined }),
+      });
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "送れませんでした");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <article className="card p-5">
+      <p className="text-xs text-terracotta">
+        {prompt.kind === "understanding_check" ? "理解チェック" : "先生からの問い"} · {prompt.subject} / {prompt.topic}
+      </p>
+      <p className="mt-2 font-medium">{prompt.body}</p>
+      {prompt.options.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {prompt.options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={`rounded-full px-3 py-1.5 text-sm ${optionId === option.id ? "bg-navy text-cream" : "bg-line/60"}`}
+              onClick={() => setOptionId(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {prompt.allowFreeText ? (
+        <textarea
+          className="mt-3 w-full rounded-2xl border border-line bg-cream px-3 py-2 text-sm"
+          placeholder="自由回答"
+          value={freeText}
+          onChange={(event) => setFreeText(event.target.value)}
+        />
+      ) : null}
+      {error ? <p className="mt-2 text-sm text-rose">{error}</p> : null}
+      <button type="button" className="btn-primary mt-3 text-sm" disabled={busy} onClick={() => void submit()}>
+        {busy ? "送信中…" : "回答する"}
+      </button>
+    </article>
   );
 }

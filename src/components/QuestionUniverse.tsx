@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
 import { matchTeachers } from "@/lib/match";
 import type { CachedSchoolInsight, SafeTeacher, SchoolAnalysis, SuggestedAction } from "@/lib/types";
@@ -42,6 +43,7 @@ function colorFor(node: GraphNode): string {
   if (node.kind === "subject") return FILL[node.label] ?? "#9aa3b5";
   if (node.kind === "school") return "#1c2740";
   if (node.kind === "question") return "#fff6d2";
+  if (node.kind === "relation") return "#f3c19a";
   return "#d7deea";
 }
 
@@ -291,10 +293,14 @@ function DetailPanel({
       <section>
         <p className="text-xs tracking-[0.2em] text-terracotta">DATA</p>
         <h2 className="mt-1 font-serif text-2xl">{topic?.topic ?? subject?.subject}</h2>
-        {topic ? (
+            {topic ? (
           <>
-            <p className="mt-3 text-sm">質問数：{topic.count}件</p>
-            <p className="text-sm text-muted">
+            <p className="mt-3 text-sm">質問：{topic.count}件</p>
+            <p className="text-sm">理解チェック：{topic.checkAnswers}件（不安 {topic.checkAnxious}）</p>
+            <p className="text-sm">
+              先生からの問い：{topic.promptCount}件 / 回答 {topic.promptAnswers}件
+            </p>
+            <p className="mt-2 text-sm text-muted">
               直近30日：{topic.recentCount}件 ／ その前：{topic.previousCount}件
             </p>
             {topic.growth.label ? <p className="mt-1 text-sm">{topic.growth.label}</p> : null}
@@ -441,11 +447,41 @@ function Actions({
       </ul>
       <div className="mt-4 flex flex-col gap-2">
         <Link
-          href={`/admin/questions?subject=${encodeURIComponent(topic.subject)}&topic=${encodeURIComponent(topic.topic)}`}
+          href={`/teacher/prompts/new?subject=${encodeURIComponent(topic.subject)}&topic=${encodeURIComponent(topic.topic)}`}
           className="btn-navy text-sm"
         >
-          質問一覧を見る
+          生徒に問いを送る
         </Link>
+        <Link
+          href={`/admin/questions?subject=${encodeURIComponent(topic.subject)}&topic=${encodeURIComponent(topic.topic)}`}
+          className="btn-ghost text-sm"
+        >
+          質問履歴を見る
+        </Link>
+        <button
+          type="button"
+          className="btn-ghost text-sm"
+          onClick={() =>
+            void api("/api/follow-ups", {
+              method: "POST",
+              body: JSON.stringify({ subject: topic.subject, topic: topic.topic, kind: "class_review" }),
+            })
+          }
+        >
+          授業で確認する
+        </button>
+        <button
+          type="button"
+          className="btn-ghost text-sm"
+          onClick={() =>
+            void api("/api/follow-ups", {
+              method: "POST",
+              body: JSON.stringify({ subject: topic.subject, topic: topic.topic, kind: "test_candidate" }),
+            })
+          }
+        >
+          出題検討候補にする
+        </button>
         <button type="button" className="btn-ghost text-sm" onClick={onShare}>
           先生へ共有
         </button>

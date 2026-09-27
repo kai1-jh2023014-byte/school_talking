@@ -8,7 +8,7 @@ import type { Question, StoreData, User } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
-export const STORE_VERSION = 4;
+export const STORE_VERSION = 5;
 
 let writeChain: Promise<unknown> = Promise.resolve();
 
@@ -74,6 +74,13 @@ function migrateStore(store: StoreData): boolean {
     store.version = 4;
     changed = true;
   }
+  if ((store.version ?? 1) < 5) {
+    if (!store.prompts) store.prompts = [];
+    if (!store.promptResponses) store.promptResponses = [];
+    if (!store.followUps) store.followUps = [];
+    store.version = 5;
+    changed = true;
+  }
   return changed;
 }
 
@@ -128,6 +135,9 @@ export async function resetStore(): Promise<StoreData> {
     store.users = seeded.users;
     store.questions = seeded.questions;
     store.schoolInsight = undefined;
+    store.prompts = seeded.prompts ?? [];
+    store.promptResponses = seeded.promptResponses ?? [];
+    store.followUps = seeded.followUps ?? [];
     return store;
   });
 }

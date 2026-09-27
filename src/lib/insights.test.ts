@@ -66,7 +66,45 @@ describe("buildSchoolSnapshot", () => {
     const field = snapshot.topics[0];
     expect(field.topic).toBe("二次関数");
     expect(field.clusters.some((item) => item.name === "最大値・最小値")).toBe(true);
-    expect(snapshotFingerprint(store.questions)).toBe(snapshot.fingerprint);
+    expect(snapshotFingerprint(store)).toBe(snapshot.fingerprint);
+  });
+
+  it("counts understanding checks without treating them as student questions", () => {
+    const store: StoreData = {
+      users: [],
+      questions: [
+        q({
+          id: "1",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          subject: "数学",
+          topic: "二次関数",
+          status: "answered",
+        }),
+      ],
+      prompts: [
+        {
+          id: "p1",
+          kind: "understanding_check",
+          teacherId: "t",
+          subject: "数学",
+          topic: "二次関数",
+          body: "理解",
+          options: [{ id: "uneasy", label: "少し不安", anxious: true }],
+          allowFreeText: false,
+          audience: { type: "class", homeroom: "2年A組" },
+          createdAt: "2026-09-11T08:00:00.000Z",
+          status: "open",
+        },
+      ],
+      promptResponses: [
+        { id: "r1", promptId: "p1", studentId: "s", optionId: "uneasy", createdAt: "2026-09-11T09:00:00.000Z" },
+      ],
+    };
+    const snapshot = buildSchoolSnapshot(store, now);
+    const field = snapshot.topics.find((item) => item.topic === "二次関数");
+    expect(field?.count).toBe(1);
+    expect(field?.checkAnswers).toBe(1);
+    expect(field?.checkAnxious).toBe(1);
   });
 
   it("does not put one node per question at school level", () => {

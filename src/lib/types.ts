@@ -48,6 +48,7 @@ export type User = {
   grade?: string;
   className?: string;
   homeroom?: string;
+  homerooms?: string[];
   subjects?: string[];
   specialties?: string[];
   availability?: Availability;
@@ -123,7 +124,48 @@ export type SuggestedAction = {
   target: string;
   action: string;
   reason: string;
-  kind: "materials" | "share" | "queue" | "wait";
+  kind: "materials" | "share" | "queue" | "wait" | "prompt" | "check" | "test" | "review";
+};
+
+export type PromptKind = "teacher_question" | "understanding_check";
+
+export type PromptAudience =
+  | { type: "class"; homeroom: string }
+  | { type: "grade"; grade: string }
+  | { type: "students"; studentIds: string[] };
+
+export type PromptOption = { id: string; label: string; anxious?: boolean };
+
+export type Prompt = {
+  id: string;
+  kind: PromptKind;
+  teacherId: string;
+  subject: string;
+  topic: string;
+  body: string;
+  options: PromptOption[];
+  allowFreeText: boolean;
+  audience: PromptAudience;
+  createdAt: string;
+  status: "open" | "closed";
+};
+
+export type PromptResponse = {
+  id: string;
+  promptId: string;
+  studentId: string;
+  optionId?: string;
+  freeText?: string;
+  createdAt: string;
+};
+
+export type FollowUpMark = {
+  id: string;
+  subject: string;
+  topic: string;
+  kind: "class_review" | "test_candidate" | "dismissed";
+  actorId: string;
+  createdAt: string;
 };
 
 export type SchoolAnalysis = {
@@ -148,6 +190,9 @@ export type StoreData = {
   users: User[];
   questions: Question[];
   schoolInsight?: CachedSchoolInsight;
+  prompts?: Prompt[];
+  promptResponses?: PromptResponse[];
+  followUps?: FollowUpMark[];
 };
 
 export type TeacherMatch = {
