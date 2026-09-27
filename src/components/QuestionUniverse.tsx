@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
 import { LOOP_LABEL } from "@/lib/loop";
@@ -9,14 +9,22 @@ import { matchTeachers } from "@/lib/match";
 import type { CachedSchoolInsight, SafeTeacher, SchoolAnalysis, SuggestedAction } from "@/lib/types";
 import type { SchoolSnapshot, TopicSnapshot } from "@/lib/insights";
 import {
-  layoutScene,
+  planetPosition,
+  satelliteOrbit,
+  satellitePosition,
+  starPosition,
   type Focus,
-  type GraphNode,
+  type UniverseStar,
   type UniverseViewPlanet,
+  type UniverseViewSatellite,
 } from "@/lib/universe";
 
 const WIDTH = 920;
 const HEIGHT = 560;
+const CX = 460;
+const CY = 278;
+const RING_X = 268;
+const RING_Y = 196;
 
 export type UniverseScreenData = {
   total: number;
@@ -57,12 +65,20 @@ function dustField() {
 
 const DUST = dustField();
 
-function colorFor(node: GraphNode): string {
-  if (node.kind === "subject") return FILL[node.label] ?? "#9aa3b5";
-  if (node.kind === "school") return "#1c2740";
-  if (node.kind === "question") return "#fff6d2";
-  if (node.kind === "relation") return "#f3c19a";
-  return "#d7deea";
+function planetColor(subject: string): string {
+  return FILL[subject] ?? "#9aa3b5";
+}
+
+type Selection =
+  | { kind: "school" }
+  | { kind: "planet"; subject: string }
+  | { kind: "satellite"; subject: string; topic: string }
+  | { kind: "star"; subject: string; topic: string; id: string };
+
+function selectionToFocus(selection: Selection): Focus {
+  if (selection.kind === "school") return { level: 1 };
+  if (selection.kind === "planet") return { level: 2, subject: selection.subject };
+  return { level: 3, subject: selection.subject, topic: selection.topic };
 }
 
 export function QuestionUniverse({
@@ -74,69 +90,31 @@ export function QuestionUniverse({
   onRefreshAnalysis?: () => Promise<void>;
   compact?: boolean;
 }) {
-  const [focus, setFocus] = useState<Focus>({ level: 1 });
+  const svgId = useId().replace(/:/g, "");
+  const [selection, setSelection] = useState<Selection>({ kind: "school" });
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [camera, setCamera] = useState({ x: 0, y: 0, w: WIDTH, h: HEIGHT });
-  const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
-  const attentionKeys = (data.insight?.analysis?.attentionAreas ?? [])
-    .filter((area) => !dismissed.includes(`${area.subject}/${area.topic}`))
-    .flatMap((area) => [area.subject, area.topic, `${area.subject}/${area.topic}`]);
-
-  const scene = useMemo(
-    () => layoutScene(data, focus, attentionKeys),
-    [data, focus, attentionKeys],
-  );
-
-  useEffect(() => {
-    const target = scene.camera;
-    let frame = 0;
-    const from = { ...camera };
-    const started = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - started) / 320);
-      const ease = 1 - (1 - t) * (1 - t);
-      setCamera({
-        x: from.x + (target.x - from.x) * ease,
-        y: from.y + (target.y - from.y) * ease,
-        w: from.w + (target.w - from.w) * ease,
-        h: from.h + (target.h - from.h) * ease,
-      });
-      if (t < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focus]);
-
+  const focus = selectionToFocus(selection);
   const topicFocus: TopicSnapshot | undefined =
     "topic" in focus ? data.snapshot.topics.find((item) => item.subject === focus.subject && item.topic === focus.topic) : undefined;
 
-  function onNode(node: GraphNode) {
-    if (node.kind === "school") setFocus({ level: 1 });
-    if (node.kind === "subject") setFocus({ level: 2, subject: node.label });
-    if (node.kind === "topic") {
-      const raw = node.id.replace(/^topic:/, "");
-      const slash = raw.indexOf("/");
-      if (slash > 0) {
-        setFocus({ level: 3, subject: raw.slice(0, slash), topic: raw.slice(slash + 1) });
-      } else if ("subject" in focus) {
-        setFocus({ level: 3, subject: focus.subject, topic: node.label });
-      }
-    }
-    if (node.kind === "cluster" && "topic" in focus) {
-      setFocus({ level: 4, subject: focus.subject, topic: focus.topic, cluster: node.label });
-    }
-  }
-
-  function back() {
-    if (focus.level === 4 && "topic" in focus) setFocus({ level: 3, subject: focus.subject, topic: focus.topic });
-    else if (focus.level === 3 && "subject" in focus) setFocus({ level: 2, subject: focus.subject });
-    else setFocus({ level: 1 });
-    setShareOpen(false);
-  }
+  const laidOut = useMemo(() => {
+    return data.planets.map((planet, index) => {
+      const origin = planetPosition(index, data.planets.length, CX, CY, RING_X, RING_Y);
+      const orbit = satelliteOrbit(planet.radius, planet.satellites.length);
+      const satellites = planet.satellites.map((satellite, satIndex) => {
+        const seat = satellitePosition(origin, satIndex, planet.satellites.length, orbit);
+        const stars = satellite.samples.map((star, starIndex) => ({
+          star,
+          point: starPosition(seat, starIndex, satellite.radius + 7),
+        }));
+        return { satellite, point: seat, stars };
+      });
+      return { planet, origin, orbit, satellites };
+    });
+  }, [data.planets]);
 
   async function refresh() {
     if (!onRefreshAnalysis) return;
@@ -148,60 +126,29 @@ export function QuestionUniverse({
     }
   }
 
+  const selectedSubject = selection.kind === "school" ? undefined : selection.subject;
+
   return (
     <div className={compact ? "space-y-3" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]"}>
       <div>
-        <div className="mb-3 flex flex-wrap gap-2">
-          <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setFocus({ level: 1 })}>
-            学校全体
-          </button>
-          {focus.level > 1 ? (
-            <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={back}>
-              ひとつ戻る
-            </button>
-          ) : null}
-          <span className="self-center text-xs text-muted">
-            {focus.level === 1 ? "教科の惑星" : focus.level === 2 ? "分野の衛星" : focus.level === 3 ? "問いの循環" : "個別の質問"}
-          </span>
-        </div>
         <div className="overflow-hidden rounded-3xl border border-[#1b2744] bg-[#0b1224] shadow-slip">
           <svg
-            viewBox={`${camera.x} ${camera.y} ${camera.w} ${camera.h}`}
-            className="h-auto w-full cursor-grab active:cursor-grabbing"
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="h-auto w-full"
             role="img"
-            aria-label="学校の質問を、教科の惑星と分野の衛星で表した図"
-            onPointerDown={(event) => {
-              drag.current = { x: event.clientX, y: event.clientY, cx: camera.x, cy: camera.y };
-            }}
-            onPointerMove={(event) => {
-              if (!drag.current) return;
-              const dx = ((event.clientX - drag.current.x) / event.currentTarget.clientWidth) * camera.w;
-              const dy = ((event.clientY - drag.current.y) / event.currentTarget.clientHeight) * camera.h;
-              setCamera((prev) => ({ ...prev, x: drag.current!.cx - dx, y: drag.current!.cy - dy }));
-            }}
-            onPointerUp={() => {
-              drag.current = null;
-            }}
-            onPointerLeave={() => {
-              drag.current = null;
-            }}
-            onWheel={(event) => {
-              event.preventDefault();
-              const factor = event.deltaY > 0 ? 1.08 : 0.92;
-              setCamera((prev) => ({
-                ...prev,
-                w: Math.min(1400, Math.max(280, prev.w * factor)),
-                h: Math.min(900, Math.max(200, prev.h * factor)),
-              }));
+            aria-label="学校の質問を、教科の惑星と分野の衛星、個別の質問の星で表した図"
+            onClick={() => {
+              setSelection({ kind: "school" });
+              setShareOpen(false);
             }}
           >
             <defs>
-              <radialGradient id="universe-space" cx="50%" cy="45%" r="70%">
+              <radialGradient id={`universe-space-${svgId}`} cx="50%" cy="45%" r="70%">
                 <stop offset="0%" stopColor="#152244" />
                 <stop offset="70%" stopColor="#0b1224" />
                 <stop offset="100%" stopColor="#070b16" />
               </radialGradient>
-              <filter id="universe-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <filter id={`universe-glow-${svgId}`} x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="4" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
@@ -209,121 +156,198 @@ export function QuestionUniverse({
                 </feMerge>
               </filter>
             </defs>
-            <rect x={camera.x} y={camera.y} width={camera.w} height={camera.h} fill="url(#universe-space)" />
-            {focus.level === 1
-              ? DUST.map((dot, index) => (
-                  <circle key={index} cx={dot.x} cy={dot.y} r={dot.r} fill="#f4efe4" opacity={dot.o} />
-                ))
-              : null}
-            {scene.nodes
-              .filter((node) => node.kind === "subject" && node.orbit)
-              .map((node) => (
-                <circle
-                  key={`orbit-${node.id}`}
-                  cx={node.x}
-                  cy={node.y}
-                  r={node.orbit}
-                  fill="none"
-                  stroke={colorFor(node)}
-                  strokeOpacity="0.22"
-                  strokeDasharray="3 7"
-                />
-              ))}
-            {scene.edges.map((edge) => {
-              const from = scene.nodes.find((node) => node.id === edge.from);
-              const to = scene.nodes.find((node) => node.id === edge.to);
-              if (!from || !to) return null;
-              const loop = from.kind === "relation" || to.kind === "relation";
+            <rect width={WIDTH} height={HEIGHT} fill={`url(#universe-space-${svgId})`} />
+            {DUST.map((dot, index) => (
+              <circle key={index} cx={dot.x} cy={dot.y} r={dot.r} fill="#f4efe4" opacity={dot.o} />
+            ))}
+
+            <circle cx={CX} cy={CY} r="34" fill="#1c2740" stroke="#e6dcc8" strokeOpacity="0.28" />
+            <text x={CX} y={CY + 4} textAnchor="middle" fill="#fffaf1" fontSize="11" fontFamily="serif">
+              学校
+            </text>
+
+            {laidOut.map(({ planet, origin, orbit, satellites }) => {
+              const color = planetColor(planet.subject);
+              const focused = !selectedSubject || selectedSubject === planet.subject;
+              const growing = planet.growth.delta > 0;
               return (
-                <line
-                  key={`${edge.from}-${edge.to}`}
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
-                  stroke={loop && (from.attention || to.attention) ? "#f3c19a" : "#e6dcc8"}
-                  strokeOpacity={loop && (from.attention || to.attention) ? 0.7 : 0.28}
-                  strokeWidth={loop && (from.attention || to.attention) ? 2.2 : 1.4}
-                />
+                <g key={planet.subject} opacity={focused ? 1 : 0.28}>
+                  {planet.satellites.length > 0 ? (
+                    <circle
+                      cx={origin.x}
+                      cy={origin.y}
+                      r={orbit}
+                      fill="none"
+                      stroke={color}
+                      strokeOpacity="0.22"
+                      strokeDasharray="3 7"
+                    />
+                  ) : null}
+                  {satellites.map(({ satellite, point, stars }) => (
+                    <SatelliteSystem
+                      key={`${planet.subject}-${satellite.topic}`}
+                      planet={planet}
+                      satellite={satellite}
+                      point={point}
+                      color={color}
+                      stars={stars}
+                      glowId={`universe-glow-${svgId}`}
+                      selection={selection}
+                      onSelect={setSelection}
+                    />
+                  ))}
+                  <g
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${planet.subject}の惑星。質問${planet.count}件`}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelection({ kind: "planet", subject: planet.subject });
+                    }}
+                  >
+                    {growing ? (
+                      <circle
+                        cx={origin.x}
+                        cy={origin.y}
+                        r={planet.radius + 10}
+                        fill={color}
+                        opacity="0.18"
+                        filter={`url(#universe-glow-${svgId})`}
+                      />
+                    ) : null}
+                    <circle
+                      cx={origin.x}
+                      cy={origin.y}
+                      r={planet.radius}
+                      fill={color}
+                      stroke={selection.kind === "planet" && selection.subject === planet.subject ? "#fffaf1" : "#0b1224"}
+                      strokeWidth={selection.kind === "planet" && selection.subject === planet.subject ? 3 : 1.5}
+                    />
+                    <circle
+                      cx={origin.x - planet.radius * 0.28}
+                      cy={origin.y - planet.radius * 0.3}
+                      r={planet.radius * 0.18}
+                      fill="#fffaf1"
+                      opacity="0.22"
+                    />
+                    <text
+                      x={origin.x}
+                      y={origin.y + planet.radius + 16}
+                      textAnchor="middle"
+                      fill="#fffaf1"
+                      fontSize="13"
+                      fontWeight="600"
+                    >
+                      {planet.subject}
+                    </text>
+                  </g>
+                </g>
               );
             })}
-            {scene.nodes.map((node) => (
-              <g
-                key={node.id}
-                className="cursor-pointer"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onNode(node);
-                }}
-              >
-                {node.kind === "subject" && (node.attention || (focus.level === 1 && node.count > 0)) ? (
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={node.r + 10}
-                    fill={colorFor(node)}
-                    opacity="0.18"
-                    filter="url(#universe-glow)"
-                  />
-                ) : node.attention ? (
-                  <circle cx={node.x} cy={node.y} r={node.r + 8} fill={colorFor(node)} opacity="0.2" />
-                ) : null}
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={node.r}
-                  fill={colorFor(node)}
-                  stroke="#fffaf1"
-                  strokeWidth={node.attention || node.kind === "subject" ? 2 : 1}
-                />
-                {node.kind === "subject" ? (
-                  <circle
-                    cx={node.x - node.r * 0.28}
-                    cy={node.y - node.r * 0.3}
-                    r={node.r * 0.18}
-                    fill="#fffaf1"
-                    opacity="0.22"
-                  />
-                ) : null}
-                {node.showLabel !== false ? (
-                <text
-                  x={node.x}
-                  y={node.y + node.r + 14}
-                  textAnchor="middle"
-                  fill="#fffaf1"
-                  fontSize={node.kind === "question" ? 9 : 12}
-                  style={{ pointerEvents: "none" }}
-                >
-                  {node.kind === "question" ? node.label.slice(0, 16) : node.label}
-                </text>
-                ) : null}
-              </g>
-            ))}
           </svg>
         </div>
         {compact ? null : (
-        <p className="mt-3 text-xs text-muted">
-          教科が惑星、分野が衛星です。クリックで開き、ドラッグで移動、ホイールで拡大できます。個別の質問は分野まで進んだときだけ出します。
-        </p>
+          <ul className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
+            <li>惑星＝教科</li>
+            <li>衛星＝分野</li>
+            <li>星＝個別の質問</li>
+            <li>大きさ＝質問数</li>
+            <li>光＝直近30日の増加</li>
+          </ul>
         )}
       </div>
       {compact ? null : (
-      <aside className="card max-h-[42rem] space-y-5 overflow-auto p-5">
-        <DetailPanel
-          data={data}
-          focus={focus}
-          topic={topicFocus}
-          analyzing={analyzing}
-          shareOpen={shareOpen}
-          onRefresh={() => void refresh()}
-          onShare={() => setShareOpen(true)}
-          onDismiss={(key) => setDismissed((prev) => [...prev, key])}
-          showAi={Boolean(onRefreshAnalysis)}
-        />
-      </aside>
+        <aside className="card max-h-[42rem] space-y-5 overflow-auto p-5">
+          <DetailPanel
+            data={data}
+            focus={focus}
+            topic={topicFocus}
+            analyzing={analyzing}
+            shareOpen={shareOpen}
+            dismissed={dismissed}
+            onRefresh={() => void refresh()}
+            onShare={() => setShareOpen(true)}
+            onDismiss={(key) => setDismissed((prev) => [...prev, key])}
+            showAi={Boolean(onRefreshAnalysis)}
+            onPickPlanet={(subject) => setSelection({ kind: "planet", subject })}
+            onPickTopic={(subject, topic) => setSelection({ kind: "satellite", subject, topic })}
+          />
+        </aside>
       )}
     </div>
+  );
+}
+
+function SatelliteSystem({
+  planet,
+  satellite,
+  point,
+  color,
+  stars,
+  glowId,
+  selection,
+  onSelect,
+}: {
+  planet: UniverseViewPlanet;
+  satellite: UniverseViewSatellite;
+  point: { x: number; y: number };
+  color: string;
+  stars: { star: UniverseStar; point: { x: number; y: number } }[];
+  glowId: string;
+  selection: Selection;
+  onSelect: (selection: Selection) => void;
+}) {
+  const selected =
+    (selection.kind === "satellite" || selection.kind === "star") &&
+    selection.subject === planet.subject &&
+    selection.topic === satellite.topic;
+  const growing = satellite.growth.delta > 0;
+
+  return (
+    <g>
+      {stars.map(({ star, point: starPoint }) => {
+        const active = selection.kind === "star" && selection.id === star.id;
+        return (
+          <circle
+            key={star.id}
+            cx={starPoint.x}
+            cy={starPoint.y}
+            r={active ? 4.2 : star.recent ? 3.1 : 2.4}
+            fill={star.recent ? "#fff6d2" : "#d7deea"}
+            stroke={active ? "#fffaf1" : "none"}
+            strokeWidth={active ? 1.4 : 0}
+            className="cursor-pointer"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect({ kind: "star", subject: planet.subject, topic: satellite.topic, id: star.id });
+            }}
+          />
+        );
+      })}
+      <g
+        className="cursor-pointer"
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect({ kind: "satellite", subject: planet.subject, topic: satellite.topic });
+        }}
+      >
+        {growing ? (
+          <circle cx={point.x} cy={point.y} r={satellite.radius + 6} fill={color} opacity="0.2" filter={`url(#${glowId})`} />
+        ) : null}
+        <circle
+          cx={point.x}
+          cy={point.y}
+          r={satellite.radius}
+          fill="#d7deea"
+          stroke={selected && selection.kind === "satellite" ? "#fffaf1" : color}
+          strokeWidth={selected && selection.kind === "satellite" ? 2.4 : 1.4}
+        />
+        <text x={point.x} y={point.y + satellite.radius + 12} textAnchor="middle" fill="#d7deea" fontSize="10">
+          {satellite.topic}
+        </text>
+      </g>
+    </g>
   );
 }
 
@@ -333,48 +357,70 @@ function DetailPanel({
   topic,
   analyzing,
   shareOpen,
+  dismissed,
   onRefresh,
   onShare,
   onDismiss,
   showAi = true,
+  onPickPlanet,
+  onPickTopic,
 }: {
   data: UniverseScreenData;
   focus: Focus;
   topic?: TopicSnapshot;
   analyzing: boolean;
   shareOpen: boolean;
+  dismissed: string[];
   onRefresh: () => void;
   onShare: () => void;
   onDismiss: (key: string) => void;
   showAi?: boolean;
+  onPickPlanet: (subject: string) => void;
+  onPickTopic: (subject: string, topic: string) => void;
 }) {
   const insight = data.insight;
   const analysis = insight?.analysis;
   const subject = "subject" in focus ? data.snapshot.subjects.find((item) => item.subject === focus.subject) : undefined;
+  const schoolGrowth = data.recentTotal > data.previousTotal ? "質問数が増えています" : undefined;
 
   if (focus.level === 1) {
     return (
       <div className="space-y-5">
         <section>
-          <p className="text-xs tracking-[0.2em] text-terracotta">DATA</p>
+          <p className="text-xs tracking-[0.2em] text-terracotta">SCHOOL</p>
           <h2 className="mt-1 font-serif text-2xl">学校全体</h2>
           <p className="mt-3 text-sm">質問数：{data.snapshot.total}件</p>
-          <p className="text-sm text-muted">
+          <p className="mt-1 text-sm text-muted">
             直近{data.snapshot.windowDays}日：{data.snapshot.recentTotal}件 ／ その前：{data.snapshot.previousTotal}件
           </p>
+          {schoolGrowth ? <p className="mt-2 text-sm text-terracotta">{schoolGrowth}</p> : null}
+          <p className="mt-4 text-sm text-muted">
+            惑星は教科、衛星は分野、小さな星はひとつひとつの質問です。クリックすると内訳が見えます。
+          </p>
+          <ul className="mt-4 space-y-1 text-sm">
+            {data.planets.map((planet) => (
+              <li key={planet.subject}>
+                <button type="button" className="text-left hover:text-terracotta" onClick={() => onPickPlanet(planet.subject)}>
+                  {planet.subject} {planet.count}件
+                </button>
+              </li>
+            ))}
+          </ul>
         </section>
         {showAi ? (
           <AnalysisBlock insight={insight} stale={data.insightStale} analyzing={analyzing} onRefresh={onRefresh} />
         ) : null}
-        {analysis?.attentionAreas.length ? (
+        {analysis?.attentionAreas.filter((area) => !dismissed.includes(`${area.subject}/${area.topic}`)).length ? (
           <section>
             <h3 className="text-sm font-semibold">注目候補</h3>
             <ul className="mt-2 space-y-2 text-sm">
-              {analysis.attentionAreas.map((area) => (
-                <li key={`${area.subject}/${area.topic}`}>
-                  {area.subject} / {area.topic}
-                </li>
-              ))}
+              {analysis.attentionAreas
+                .filter((area) => !dismissed.includes(`${area.subject}/${area.topic}`))
+                .map((area) => (
+                  <li key={`${area.subject}/${area.topic}`}>
+                    {area.subject} / {area.topic}
+                  </li>
+                ))}
             </ul>
           </section>
         ) : null}
@@ -421,7 +467,7 @@ function DetailPanel({
             <p className="mt-2 text-sm text-muted">
               直近30日：{topic.recentCount}件 ／ その前：{topic.previousCount}件
             </p>
-            {topic.growth.label ? <p className="mt-1 text-sm">{topic.growth.label}</p> : null}
+            {topic.growth.label ? <p className="mt-1 text-sm text-terracotta">{topic.growth.label}</p> : null}
             <ul className="mt-3 space-y-1 text-sm">
               {topic.clusters.map((cluster) => (
                 <li key={cluster.name}>
@@ -436,7 +482,23 @@ function DetailPanel({
             <p className="text-sm text-muted">
               直近30日：{subject.recentCount}件 ／ その前：{subject.previousCount}件
             </p>
-            {subject.growth.label ? <p className="mt-1 text-sm">{subject.growth.label}</p> : null}
+            {subject.growth.label ? <p className="mt-1 text-sm text-terracotta">{subject.growth.label}</p> : null}
+            <ul className="mt-4 space-y-1 text-sm">
+              {data.planets
+                .find((planet) => planet.subject === subject.subject)
+                ?.satellites.slice(0, 6)
+                .map((satellite) => (
+                  <li key={satellite.topic}>
+                    <button
+                      type="button"
+                      className="text-left hover:text-terracotta"
+                      onClick={() => onPickTopic(subject.subject, satellite.topic)}
+                    >
+                      ・{satellite.topic}（{satellite.count}件）
+                    </button>
+                  </li>
+                ))}
+            </ul>
           </>
         ) : null}
       </section>
@@ -446,7 +508,11 @@ function DetailPanel({
       {topic ? (
         <Actions
           topic={topic}
-          actions={analysis?.suggestedActions ?? []}
+          actions={
+            dismissed.includes(`${topic.subject}/${topic.topic}`)
+              ? []
+              : (analysis?.suggestedActions ?? [])
+          }
           teachers={data.teachers}
           shareOpen={shareOpen}
           onShare={onShare}

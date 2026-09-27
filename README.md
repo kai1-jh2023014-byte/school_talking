@@ -42,6 +42,8 @@ npm run build
 npm run dev
 ```
 
+Windows ではリポジトリ直下の `start.bat` でも起動できます。bat はデスクトップではなく、このフォルダに置いてください。`git pull` のあとは同じフォルダで `npm install` が必要です。`Can't resolve 'bcryptjs'` は、パッケージ未インストールのときに出ます。
+
 ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
 
 - 生徒入口: [/login/student](http://localhost:3000/login/student)

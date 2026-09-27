@@ -49,7 +49,7 @@ function AdminDashboard() {
         <p className="text-muted">{error || "読み込み中…"}</p>
         <UniversePreview
           title="学校の Question Universe"
-          caption="教科が惑星、分野が衛星です。ログインした直後から、学校の問いが見えます。"
+          caption="教科は惑星、分野は衛星、質問は小さな星です。"
           href="/admin/universe"
         />
       </div>
@@ -75,7 +75,7 @@ function AdminDashboard() {
 
       <UniversePreview
         title="学校の Question Universe"
-        caption="教科が惑星、分野が衛星です。ログインした直後から、学校の問いが見えます。"
+        caption="教科は惑星、分野は衛星、質問は小さな星です。"
         href="/admin/universe"
       />
 
