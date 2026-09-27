@@ -58,6 +58,10 @@ export async function POST(request: Request) {
     allowFreeText?: boolean;
     options?: { id: string; label: string; anxious?: boolean }[];
     audience?: PromptAudience;
+    purpose?: "initial" | "recheck";
+    parentPromptId?: string;
+    sourceQuestionId?: string;
+    followUpId?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -83,6 +87,10 @@ export async function POST(request: Request) {
       options: body.options,
       allowFreeText: body.allowFreeText,
       audience: body.audience!,
+      purpose: body.purpose,
+      parentPromptId: body.parentPromptId,
+      sourceQuestionId: body.sourceQuestionId,
+      followUpId: body.followUpId,
     });
     store.prompts = [...promptsOf(store), created];
     return created;

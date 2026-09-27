@@ -8,7 +8,7 @@ import type { Question, StoreData, User } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "store.json");
-export const STORE_VERSION = 5;
+export const STORE_VERSION = 6;
 
 let writeChain: Promise<unknown> = Promise.resolve();
 
@@ -79,6 +79,13 @@ function migrateStore(store: StoreData): boolean {
     if (!store.promptResponses) store.promptResponses = [];
     if (!store.followUps) store.followUps = [];
     store.version = 5;
+    changed = true;
+  }
+  if ((store.version ?? 1) < 6) {
+    for (const mark of store.followUps ?? []) {
+      if (!mark.status) mark.status = "planned";
+    }
+    store.version = 6;
     changed = true;
   }
   return changed;

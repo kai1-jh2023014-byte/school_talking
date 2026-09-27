@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { api } from "@/lib/client";
 import type { MyTopicState } from "@/lib/prompts";
+import type { ChainEvent } from "@/lib/loop";
 
 export default function StudentUniversePage() {
   return (
@@ -15,7 +16,7 @@ export default function StudentUniversePage() {
 
 function MyUniverse() {
   const [data, setData] = useState<{
-    topics: MyTopicState[];
+    topics: (MyTopicState & { chain?: ChainEvent[] })[];
     reviewCandidates: MyTopicState[];
     disclaimer: string;
   } | null>(null);
@@ -76,6 +77,19 @@ function MyUniverse() {
                 </ul>
               </div>
             ) : null}
+            {item.chain && item.chain.length > 0 ? (
+              <ol className="mt-4 space-y-2 border-t border-line pt-3 text-sm">
+                {item.chain.map((event, index) => (
+                  <li key={`${event.at}-${index}`}>
+                    <p className="font-medium">{event.title}</p>
+                    {event.detail ? <p className="text-muted">{event.detail}</p> : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <a href="/student/ask" className="btn-ghost mt-3 inline-flex text-xs">
+              もう一度質問する
+            </a>
           </article>
         ))}
       </section>

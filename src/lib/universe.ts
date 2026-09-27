@@ -1,7 +1,7 @@
 import { SUBJECT_RULES } from "./classify";
 import { SUBJECTS } from "./constants";
 import { normalizeStatus } from "./questions";
-import { promptsOf } from "./prompts";
+import { followUpsOf, promptsOf } from "./prompts";
 import type { Question, QuestionStatus, StoreData } from "./types";
 
 export const SAMPLE_LIMIT = 8;
@@ -37,6 +37,8 @@ export type UniverseSatellite = {
   stars: UniverseStar[];
   checkAnswers: number;
   promptCount: number;
+  recheckCount: number;
+  followUpCount: number;
 };
 
 export type UniversePlanet = {
@@ -201,8 +203,10 @@ export function buildUniverse(store: StoreData, now = new Date()): UniversePaylo
           ),
           clusters: clusterQuestions(subject, topic, topicQuestions),
           stars,
-          checkAnswers: topicPrompts.filter((prompt) => prompt.kind === "understanding_check").length,
+          checkAnswers: topicPrompts.filter((prompt) => prompt.kind === "understanding_check" && (prompt.purpose ?? "initial") !== "recheck").length,
           promptCount: topicPrompts.filter((prompt) => prompt.kind === "teacher_question").length,
+          recheckCount: topicPrompts.filter((prompt) => prompt.purpose === "recheck" || Boolean(prompt.parentPromptId)).length,
+          followUpCount: followUpsOf(store).filter((item) => item.subject === subject && item.topic === topic).length,
         };
       })
       .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic, "ja"));
@@ -296,6 +300,8 @@ export function toUniverseView(payload: UniversePayload): { planets: UniverseVie
         samples: satellite.stars.slice(0, SAMPLE_LIMIT),
         checkAnswers: satellite.checkAnswers,
         promptCount: satellite.promptCount,
+        recheckCount: satellite.recheckCount,
+        followUpCount: satellite.followUpCount,
       })),
     })),
   };
@@ -319,6 +325,8 @@ export function layoutScene(
         clusters: ClusterStat[];
         checkAnswers?: number;
         promptCount?: number;
+        recheckCount?: number;
+        followUpCount?: number;
       }>;
     }>;
   },
@@ -407,12 +415,16 @@ export function layoutScene(
     });
     if (origin && focus.level === 3) {
       const relations = [
-        { id: "questions", label: "質問", count: satellite?.count ?? 0 },
-        { id: "checks", label: "確認", count: satellite?.checkAnswers ?? 0 },
-        { id: "prompts", label: "先生の問い", count: satellite?.promptCount ?? 0 },
+        { id: "questions", label: "質問", count: satellite?.count ?? 0, loop: false },
+        { id: "prompts", label: "先生の問い", count: satellite?.promptCount ?? 0, loop: true },
+        { id: "checks", label: "確認", count: satellite?.checkAnswers ?? 0, loop: true },
+        { id: "action", label: "対応", count: satellite?.followUpCount ?? 0, loop: true },
+        { id: "recheck", label: "再確認", count: satellite?.recheckCount ?? 0, loop: true },
+        { id: "result", label: "結果", count: satellite?.recheckCount ? 1 : 0, loop: true },
       ];
+      let previous: string | null = origin.id;
       relations.forEach((item, index) => {
-        const seat = ring(origin, index, relations.length, origin.r + 108, 0.4);
+        const seat = ring(origin, index, relations.length, origin.r + 118, 0.15);
         const relId = `relation:${focus.subject}/${focus.topic}/${item.id}`;
         nodes.push({
           id: relId,
@@ -422,8 +434,10 @@ export function layoutScene(
           y: seat.y,
           r: bodyRadius(item.count, 8, 16),
           count: item.count,
+          attention: item.loop && item.count > 0,
         });
-        edges.push({ from: origin.id, to: relId });
+        edges.push({ from: previous ?? origin.id, to: relId });
+        previous = relId;
       });
     }
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSchoolSnapshot, snapshotFingerprint } from "./insights";
+import { buildSchoolSnapshot, insightStale, snapshotFingerprint } from "./insights";
 import { layoutScene } from "./universe";
 import type { Question, StoreData } from "./types";
 
@@ -139,5 +139,31 @@ describe("buildSchoolSnapshot", () => {
     );
     expect(scene.nodes.every((node) => node.kind === "school" || node.kind === "subject")).toBe(true);
     expect(scene.nodes.filter((node) => node.kind === "question")).toHaveLength(0);
+  });
+
+  it("keeps the fingerprint stable for the same DATA and stale when follow-ups change", () => {
+    const store: StoreData = {
+      users: [],
+      questions: [
+        q({
+          id: "1",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          subject: "数学",
+          topic: "二次関数",
+          status: "answered",
+        }),
+      ],
+    };
+    const first = snapshotFingerprint(store);
+    expect(insightStale({ fingerprint: first, analyzedAt: "t", status: "ok", analysis: null }, first)).toBe(false);
+    expect(
+      insightStale(
+        { fingerprint: first, analyzedAt: "t", status: "ok", analysis: null },
+        snapshotFingerprint({
+          ...store,
+          followUps: [{ id: "f", subject: "数学", topic: "二次関数", kind: "class_review", actorId: "t", createdAt: "t", status: "planned" }],
+        }),
+      ),
+    ).toBe(true);
   });
 });

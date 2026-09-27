@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
+import { LOOP_LABEL } from "@/lib/loop";
 import { matchTeachers } from "@/lib/match";
 import type { CachedSchoolInsight, SafeTeacher, SchoolAnalysis, SuggestedAction } from "@/lib/types";
 import type { SchoolSnapshot, TopicSnapshot } from "@/lib/insights";
@@ -171,6 +172,7 @@ export function QuestionUniverse({
               const from = scene.nodes.find((node) => node.id === edge.from);
               const to = scene.nodes.find((node) => node.id === edge.to);
               if (!from || !to) return null;
+              const loop = from.kind === "relation" || to.kind === "relation";
               return (
                 <line
                   key={`${edge.from}-${edge.to}`}
@@ -178,9 +180,9 @@ export function QuestionUniverse({
                   y1={from.y}
                   x2={to.x}
                   y2={to.y}
-                  stroke="#e6dcc8"
-                  strokeOpacity="0.28"
-                  strokeWidth="1.4"
+                  stroke={loop && (from.attention || to.attention) ? "#f3c19a" : "#e6dcc8"}
+                  strokeOpacity={loop && (from.attention || to.attention) ? 0.7 : 0.28}
+                  strokeWidth={loop && (from.attention || to.attention) ? 2.2 : 1.4}
                 />
               );
             })}
@@ -295,11 +297,35 @@ function DetailPanel({
         <h2 className="mt-1 font-serif text-2xl">{topic?.topic ?? subject?.subject}</h2>
             {topic ? (
           <>
+            <p className="mt-1 text-xs">{LOOP_LABEL[topic.loopPhase]}</p>
             <p className="mt-3 text-sm">質問：{topic.count}件</p>
             <p className="text-sm">理解チェック：{topic.checkAnswers}件（不安 {topic.checkAnxious}）</p>
             <p className="text-sm">
               先生からの問い：{topic.promptCount}件 / 回答 {topic.promptAnswers}件
             </p>
+            <p className="text-sm">再確認：{topic.recheckCount}回</p>
+            {topic.reviewPlanned ? <p className="text-sm">先生の判断：授業で確認（予定）</p> : null}
+            {topic.testCandidate ? <p className="text-sm">先生の判断：出題検討</p> : null}
+            {topic.before ? (
+              <div className="mt-3 text-sm">
+                <p className="font-medium">確認前</p>
+                {topic.before.map((row) => (
+                  <p key={row.id} className="text-muted">
+                    {row.label} {row.count}人
+                  </p>
+                ))}
+              </div>
+            ) : null}
+            {topic.after ? (
+              <div className="mt-3 text-sm">
+                <p className="font-medium">確認後</p>
+                {topic.after.map((row) => (
+                  <p key={row.id} className="text-muted">
+                    {row.label} {row.count}人
+                  </p>
+                ))}
+              </div>
+            ) : null}
             <p className="mt-2 text-sm text-muted">
               直近30日：{topic.recentCount}件 ／ その前：{topic.previousCount}件
             </p>
@@ -450,7 +476,13 @@ function Actions({
           href={`/teacher/prompts/new?subject=${encodeURIComponent(topic.subject)}&topic=${encodeURIComponent(topic.topic)}`}
           className="btn-navy text-sm"
         >
-          生徒に問いを送る
+          追加で問いを送る
+        </Link>
+        <Link
+          href={`/teacher/prompts/new?subject=${encodeURIComponent(topic.subject)}&topic=${encodeURIComponent(topic.topic)}&kind=understanding_check&purpose=recheck`}
+          className="btn-ghost text-sm"
+        >
+          再確認を送る
         </Link>
         <Link
           href={`/admin/questions?subject=${encodeURIComponent(topic.subject)}&topic=${encodeURIComponent(topic.topic)}`}

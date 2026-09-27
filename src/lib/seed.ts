@@ -583,6 +583,7 @@ export function createSeedStore(): StoreData {
       ],
       allowFreeText: true,
       audience: { type: "class", homeroom: "2年A組" },
+      sourceQuestionId: "q-1",
       createdAt: hoursAgo(5),
       status: "open",
     },
@@ -603,6 +604,22 @@ export function createSeedStore(): StoreData {
       createdAt: hoursAgo(2),
       status: "open",
     },
+    {
+      id: "p-recheck-1",
+      kind: "understanding_check",
+      teacherId: "u-math-a",
+      subject: "数学",
+      topic: "二次関数",
+      body: "二次関数の最大・最小を、自力で解けそうですか？",
+      options: CHECK_OPTIONS,
+      allowFreeText: false,
+      audience: { type: "class", homeroom: "2年A組" },
+      createdAt: hoursAgo(1),
+      status: "open",
+      purpose: "recheck",
+      parentPromptId: "p-check-1",
+      followUpId: "fu-1",
+    },
   ];
   const promptResponses: PromptResponse[] = [
     {
@@ -622,12 +639,25 @@ export function createSeedStore(): StoreData {
     },
   ];
   return {
-    version: 5,
+    version: 6,
     users: createSeedUsers(),
     questions: createSeedQuestions(),
     prompts,
     promptResponses,
-    followUps: [],
+    followUps: [
+      {
+        id: "fu-1",
+        subject: "数学",
+        topic: "二次関数",
+        kind: "class_review",
+        actorId: "u-math-a",
+        createdAt: hoursAgo(2),
+        status: "planned",
+        promptId: "p-check-1",
+        recheckPromptId: "p-recheck-1",
+        homeroom: "2年A組",
+      },
+    ],
   };
 }
 

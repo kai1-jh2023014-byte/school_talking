@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { api } from "@/lib/client";
 import type { FollowUpMark } from "@/lib/types";
+import { LOOP_LABEL } from "@/lib/loop";
 import type { UniverseScreenData } from "@/components/QuestionUniverse";
 
 export default function StaffRoomPage() {
@@ -68,16 +69,32 @@ function StaffRoom() {
       {error ? <p className="text-rose">{error}</p> : null}
       {message ? <p className="text-sm">{message}</p> : null}
 
+      <section className="card p-6">
+        <h2 className="font-serif text-2xl">現在進行中の問い</h2>
+        <ul className="mt-4 space-y-3">
+          {topics
+            .filter((item) => item.count > 0 || item.promptCount > 0 || item.checkAnswers > 0)
+            .slice(0, 10)
+            .map((item) => (
+              <li key={item.key} className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <p className="text-xs text-muted">{item.subject}</p>
+                  <p className="font-serif text-xl">{item.topic}</p>
+                </div>
+                <span className="text-sm">{LOOP_LABEL[item.loopPhase]}</span>
+              </li>
+            ))}
+        </ul>
+      </section>
+
       <section className="grid gap-3 md:grid-cols-2">
         {topics.slice(0, 8).map((item) => {
-          const label =
-            item.checkAnxious >= 2 || item.count >= 3 ? "確認候補" : item.growth.delta > 0 ? "質問増加" : "安定";
           return (
             <article key={item.key} className="card p-5">
               <p className="text-xs text-muted">{item.subject}</p>
               <div className="flex items-baseline justify-between gap-2">
                 <h2 className="font-serif text-2xl">{item.topic}</h2>
-                <span className="text-xs">{label}</span>
+                <span className="text-xs">{LOOP_LABEL[item.loopPhase]}</span>
               </div>
               <p className="mt-3 text-sm">質問 {item.count}件</p>
               <p className="text-sm">理解チェック {item.checkAnswers}件（不安 {item.checkAnxious}）</p>
@@ -104,7 +121,63 @@ function StaffRoom() {
                 <p className="text-sm">
                   先生からの問い：{item.promptCount}件（回答 {item.promptAnswers}）
                 </p>
-                <p className="mt-2 text-sm text-muted">→ 授業内での追加確認を検討できます</p>
+                <p className="text-sm">再確認：{item.recheckCount}回</p>
+                {item.before ? (
+                  <div className="mt-2 text-sm text-muted">
+                    確認前：
+                    {item.before.map((row) => `${row.label}${row.count}`).join(" / ")}
+                  </div>
+                ) : null}
+                {item.after ? (
+                  <div className="text-sm text-muted">
+                    確認後：
+                    {item.after.map((row) => `${row.label}${row.count}`).join(" / ")}
+                  </div>
+                ) : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={() => {
+                      const review = marks.find(
+                        (mark) =>
+                          mark.subject === item.subject &&
+                          mark.topic === item.topic &&
+                          mark.kind === "class_review" &&
+                          (mark.status ?? "planned") === "planned",
+                      );
+                      if (review) {
+                        void api(`/api/follow-ups/${review.id}/recheck`, {
+                          method: "POST",
+                          body: JSON.stringify({ homeroom: review.homeroom || "2年A組" }),
+                        }).then(() => load());
+                      }
+                    }}
+                  >
+                    再確認を送る
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={() => {
+                      const review = marks.find(
+                        (mark) =>
+                          mark.subject === item.subject &&
+                          mark.topic === item.topic &&
+                          mark.kind === "class_review" &&
+                          (mark.status ?? "planned") === "planned",
+                      );
+                      if (review) {
+                        void api(`/api/follow-ups/${review.id}`, {
+                          method: "PATCH",
+                          body: JSON.stringify({ status: "completed" }),
+                        }).then(() => load());
+                      }
+                    }}
+                  >
+                    この確認を完了
+                  </button>
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
                     href={`/teacher/prompts/new?subject=${encodeURIComponent(item.subject)}&topic=${encodeURIComponent(item.topic)}`}

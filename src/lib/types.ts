@@ -148,6 +148,10 @@ export type Prompt = {
   audience: PromptAudience;
   createdAt: string;
   status: "open" | "closed";
+  purpose?: "initial" | "recheck";
+  parentPromptId?: string;
+  sourceQuestionId?: string;
+  followUpId?: string;
 };
 
 export type PromptResponse = {
@@ -159,6 +163,8 @@ export type PromptResponse = {
   createdAt: string;
 };
 
+export type FollowUpStatus = "planned" | "completed" | "cancelled";
+
 export type FollowUpMark = {
   id: string;
   subject: string;
@@ -166,6 +172,11 @@ export type FollowUpMark = {
   kind: "class_review" | "test_candidate" | "dismissed";
   actorId: string;
   createdAt: string;
+  status?: FollowUpStatus;
+  promptId?: string;
+  recheckPromptId?: string;
+  homeroom?: string;
+  completedAt?: string;
 };
 
 export type SchoolAnalysis = {
