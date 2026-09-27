@@ -158,22 +158,38 @@ export function QuestionUniverse({
             </defs>
             <rect width={WIDTH} height={HEIGHT} fill={`url(#universe-space-${svgId})`} />
             {DUST.map((dot, index) => (
-              <circle key={index} cx={dot.x} cy={dot.y} r={dot.r} fill="#f4efe4" opacity={dot.o} />
+              <circle
+                key={index}
+                className="universe-twinkle"
+                cx={dot.x}
+                cy={dot.y}
+                r={dot.r}
+                fill="#f4efe4"
+                opacity={dot.o}
+                style={{
+                  animationDuration: `${2.8 + (index % 6) * 0.55}s`,
+                  animationDelay: `${(index % 17) * -0.35}s`,
+                }}
+              />
             ))}
 
-            <circle cx={CX} cy={CY} r="34" fill="#1c2740" stroke="#e6dcc8" strokeOpacity="0.28" />
-            <text x={CX} y={CY + 4} textAnchor="middle" fill="#fffaf1" fontSize="11" fontFamily="serif">
-              学校
-            </text>
+            <g className="universe-breathe" style={{ transformOrigin: `${CX}px ${CY}px` }}>
+              <circle cx={CX} cy={CY} r="34" fill="#1c2740" stroke="#e6dcc8" strokeOpacity="0.28" />
+              <text x={CX} y={CY + 4} textAnchor="middle" fill="#fffaf1" fontSize="11" fontFamily="serif">
+                学校
+              </text>
+            </g>
 
-            {laidOut.map(({ planet, origin, orbit, satellites }) => {
+            {laidOut.map(({ planet, origin, orbit, satellites }, planetIndex) => {
               const color = planetColor(planet.subject);
               const focused = !selectedSubject || selectedSubject === planet.subject;
               const growing = planet.growth.delta > 0;
+              const orbitSec = 72 + planetIndex * 14;
               return (
                 <g key={planet.subject} opacity={focused ? 1 : 0.28}>
                   {planet.satellites.length > 0 ? (
                     <circle
+                      className="universe-dash"
                       cx={origin.x}
                       cy={origin.y}
                       r={orbit}
@@ -181,21 +197,32 @@ export function QuestionUniverse({
                       stroke={color}
                       strokeOpacity="0.22"
                       strokeDasharray="3 7"
+                      style={{ animationDuration: `${22 + planetIndex * 4}s` }}
                     />
                   ) : null}
-                  {satellites.map(({ satellite, point, stars }) => (
-                    <SatelliteSystem
-                      key={`${planet.subject}-${satellite.topic}`}
-                      planet={planet}
-                      satellite={satellite}
-                      point={point}
-                      color={color}
-                      stars={stars}
-                      glowId={`universe-glow-${svgId}`}
-                      selection={selection}
-                      onSelect={setSelection}
-                    />
-                  ))}
+                  <g
+                    className="universe-spin"
+                    style={{
+                      transformOrigin: `${origin.x}px ${origin.y}px`,
+                      animationDuration: `${orbitSec}s`,
+                    }}
+                  >
+                    {satellites.map(({ satellite, point, stars }, satIndex) => (
+                      <SatelliteSystem
+                        key={`${planet.subject}-${satellite.topic}`}
+                        planet={planet}
+                        satellite={satellite}
+                        point={point}
+                        color={color}
+                        stars={stars}
+                        glowId={`universe-glow-${svgId}`}
+                        selection={selection}
+                        onSelect={setSelection}
+                        orbitSec={orbitSec}
+                        starSec={18 + satIndex * 5}
+                      />
+                    ))}
+                  </g>
                   <g
                     role="button"
                     tabIndex={0}
@@ -208,12 +235,14 @@ export function QuestionUniverse({
                   >
                     {growing ? (
                       <circle
+                        className="universe-pulse"
                         cx={origin.x}
                         cy={origin.y}
                         r={planet.radius + 10}
                         fill={color}
                         opacity="0.18"
                         filter={`url(#universe-glow-${svgId})`}
+                        style={{ transformOrigin: `${origin.x}px ${origin.y}px` }}
                       />
                     ) : null}
                     <circle
@@ -224,13 +253,21 @@ export function QuestionUniverse({
                       stroke={selection.kind === "planet" && selection.subject === planet.subject ? "#fffaf1" : "#0b1224"}
                       strokeWidth={selection.kind === "planet" && selection.subject === planet.subject ? 3 : 1.5}
                     />
-                    <circle
-                      cx={origin.x - planet.radius * 0.28}
-                      cy={origin.y - planet.radius * 0.3}
-                      r={planet.radius * 0.18}
-                      fill="#fffaf1"
-                      opacity="0.22"
-                    />
+                    <g
+                      className="universe-spin"
+                      style={{
+                        transformOrigin: `${origin.x}px ${origin.y}px`,
+                        animationDuration: `${16 + planetIndex * 3}s`,
+                      }}
+                    >
+                      <circle
+                        cx={origin.x - planet.radius * 0.28}
+                        cy={origin.y - planet.radius * 0.3}
+                        r={planet.radius * 0.18}
+                        fill="#fffaf1"
+                        opacity="0.22"
+                      />
+                    </g>
                     <text
                       x={origin.x}
                       y={origin.y + planet.radius + 16}
@@ -288,6 +325,8 @@ function SatelliteSystem({
   glowId,
   selection,
   onSelect,
+  orbitSec,
+  starSec,
 }: {
   planet: UniverseViewPlanet;
   satellite: UniverseViewSatellite;
@@ -297,6 +336,8 @@ function SatelliteSystem({
   glowId: string;
   selection: Selection;
   onSelect: (selection: Selection) => void;
+  orbitSec: number;
+  starSec: number;
 }) {
   const selected =
     (selection.kind === "satellite" || selection.kind === "star") &&
@@ -305,26 +346,48 @@ function SatelliteSystem({
   const growing = satellite.growth.delta > 0;
 
   return (
-    <g>
-      {stars.map(({ star, point: starPoint }) => {
-        const active = selection.kind === "star" && selection.id === star.id;
-        return (
-          <circle
-            key={star.id}
-            cx={starPoint.x}
-            cy={starPoint.y}
-            r={active ? 4.2 : star.recent ? 3.1 : 2.4}
-            fill={star.recent ? "#fff6d2" : "#d7deea"}
-            stroke={active ? "#fffaf1" : "none"}
-            strokeWidth={active ? 1.4 : 0}
-            className="cursor-pointer"
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect({ kind: "star", subject: planet.subject, topic: satellite.topic, id: star.id });
-            }}
-          />
-        );
-      })}
+    <g
+      className="universe-spin-rev"
+      style={{
+        transformOrigin: `${point.x}px ${point.y}px`,
+        animationDuration: `${orbitSec}s`,
+      }}
+    >
+      <g
+        className="universe-spin"
+        style={{
+          transformOrigin: `${point.x}px ${point.y}px`,
+          animationDuration: `${starSec}s`,
+        }}
+      >
+        {stars.map(({ star, point: starPoint }, starIndex) => {
+          const active = selection.kind === "star" && selection.id === star.id;
+          return (
+            <circle
+              key={star.id}
+              className={star.recent ? "universe-twinkle cursor-pointer" : "cursor-pointer"}
+              cx={starPoint.x}
+              cy={starPoint.y}
+              r={active ? 4.2 : star.recent ? 3.1 : 2.4}
+              fill={star.recent ? "#fff6d2" : "#d7deea"}
+              stroke={active ? "#fffaf1" : "none"}
+              strokeWidth={active ? 1.4 : 0}
+              style={
+                star.recent
+                  ? {
+                      animationDuration: `${1.8 + (starIndex % 4) * 0.4}s`,
+                      animationDelay: `${starIndex * -0.4}s`,
+                    }
+                  : undefined
+              }
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect({ kind: "star", subject: planet.subject, topic: satellite.topic, id: star.id });
+              }}
+            />
+          );
+        })}
+      </g>
       <g
         className="cursor-pointer"
         onClick={(event) => {
@@ -333,7 +396,16 @@ function SatelliteSystem({
         }}
       >
         {growing ? (
-          <circle cx={point.x} cy={point.y} r={satellite.radius + 6} fill={color} opacity="0.2" filter={`url(#${glowId})`} />
+          <circle
+            className="universe-pulse"
+            cx={point.x}
+            cy={point.y}
+            r={satellite.radius + 6}
+            fill={color}
+            opacity="0.2"
+            filter={`url(#${glowId})`}
+            style={{ transformOrigin: `${point.x}px ${point.y}px` }}
+          />
         ) : null}
         <circle
           cx={point.x}

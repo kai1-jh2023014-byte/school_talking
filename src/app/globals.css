@@ -62,3 +62,93 @@ body {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .universe-spin,
+  .universe-spin-rev,
+  .universe-twinkle,
+  .universe-pulse,
+  .universe-breathe,
+  .universe-dash {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .universe-spin,
+  .universe-spin-rev {
+    transform-box: view-box;
+    animation-name: universe-spin;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .universe-spin-rev {
+    animation-direction: reverse;
+  }
+
+  .universe-twinkle {
+    animation: universe-twinkle ease-in-out infinite;
+  }
+
+  .universe-pulse {
+    transform-box: view-box;
+    animation: universe-pulse 3.6s ease-in-out infinite;
+  }
+
+  .universe-breathe {
+    transform-box: view-box;
+    animation: universe-breathe 8s ease-in-out infinite;
+  }
+
+  .universe-dash {
+    animation: universe-dash 28s linear infinite;
+  }
+}
+
+@keyframes universe-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes universe-twinkle {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes universe-pulse {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.32;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes universe-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes universe-dash {
+  to {
+    stroke-dashoffset: -120;
+  }
+}
