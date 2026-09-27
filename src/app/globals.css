@@ -63,92 +63,105 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .universe-spin,
-  .universe-spin-rev,
-  .universe-twinkle,
-  .universe-pulse,
-  .universe-breathe,
-  .universe-dash {
-    animation: none !important;
-  }
+.universe-camera,
+.universe-scale {
+  transform-box: view-box;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .universe-spin,
-  .universe-spin-rev {
-    transform-box: view-box;
-    animation-name: universe-spin;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-  }
-
-  .universe-spin-rev {
-    animation-direction: reverse;
-  }
-
-  .universe-twinkle {
-    animation: universe-twinkle ease-in-out infinite;
-  }
-
-  .universe-pulse {
-    transform-box: view-box;
-    animation: universe-pulse 3.6s ease-in-out infinite;
-  }
-
-  .universe-breathe {
-    transform-box: view-box;
-    animation: universe-breathe 8s ease-in-out infinite;
-  }
-
-  .universe-dash {
-    animation: universe-dash 28s linear infinite;
-  }
+.universe-camera {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes universe-spin {
+.universe-node {
+  transition: opacity 220ms ease-in-out;
+}
+
+.universe-scale {
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.universe-disk,
+.universe-star {
+  transition:
+    r 320ms ease-out,
+    stroke-width 150ms ease-out,
+    stroke 150ms ease-out;
+}
+
+.universe-label {
+  transition:
+    font-size 150ms ease-out,
+    fill-opacity 180ms ease-in-out;
+}
+
+.universe-edge {
+  transition:
+    stroke-opacity 200ms ease-out,
+    stroke-width 200ms ease-out;
+}
+
+.universe-fx-particle {
+  transform-box: view-box;
+  animation: universe-fx-particle 0.55s ease-out 1 forwards;
+}
+
+.universe-fx-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: universe-fx-ripple 0.65s ease-out 1 forwards;
+}
+
+.universe-fx-halo {
+  animation: universe-fx-halo 0.72s ease-out 1 forwards;
+}
+
+@keyframes universe-fx-particle {
   from {
-    transform: rotate(0deg);
+    transform: translate(var(--x0), var(--y0));
+    opacity: 0.85;
   }
   to {
-    transform: rotate(360deg);
+    transform: translate(var(--x1), var(--y1));
+    opacity: 0;
   }
 }
 
-@keyframes universe-twinkle {
-  0%,
-  100% {
-    opacity: 0.18;
+@keyframes universe-fx-ripple {
+  from {
+    opacity: 0.5;
+    transform: scale(0.7);
   }
-  50% {
-    opacity: 0.9;
-  }
-}
-
-@keyframes universe-pulse {
-  0%,
-  100% {
-    opacity: 0.12;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.32;
-    transform: scale(1.08);
-  }
-}
-
-@keyframes universe-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.04);
-  }
-}
-
-@keyframes universe-dash {
   to {
-    stroke-dashoffset: -120;
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes universe-fx-halo {
+  from {
+    opacity: 0.55;
+    stroke-width: 1.1;
+  }
+  to {
+    opacity: 0;
+    stroke-width: 2.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .universe-camera,
+  .universe-scale,
+  .universe-node,
+  .universe-disk,
+  .universe-star,
+  .universe-label,
+  .universe-edge {
+    transition: none !important;
+  }
+
+  .universe-fx-particle,
+  .universe-fx-ripple,
+  .universe-fx-halo {
+    animation: none !important;
   }
 }
