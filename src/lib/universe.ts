@@ -82,6 +82,8 @@ export type GraphNode = {
   r: number;
   count: number;
   attention?: boolean;
+  orbit?: number;
+  showLabel?: boolean;
 };
 
 export type GraphEdge = { from: string; to: string };
@@ -348,6 +350,7 @@ export function layoutScene(
     const seat = planetPosition(index, planets.length, CX, CY, inward ? 200 : 268, inward ? 148 : 196);
     const planetId = `subject:${planet.subject}`;
     if (focus.level === 1 || ("subject" in focus && focus.subject === planet.subject)) {
+      const orbit = satelliteOrbit(planet.radius, planet.satellites.length);
       nodes.push({
         id: planetId,
         kind: "subject",
@@ -357,8 +360,30 @@ export function layoutScene(
         r: planet.radius,
         count: planet.count,
         attention: inward,
+        orbit: planet.satellites.length > 0 ? orbit : undefined,
+        showLabel: true,
       });
-      edges.push({ from: "school", to: planetId });
+      if (focus.level > 1) edges.push({ from: "school", to: planetId });
+    }
+    if (focus.level === 1) {
+      const origin = nodes.find((node) => node.id === planetId);
+      if (!origin) return;
+      const orbit = origin.orbit ?? satelliteOrbit(origin.r, planet.satellites.length);
+      planet.satellites.forEach((satellite, satIndex) => {
+        const topicId = `topic:${planet.subject}/${satellite.topic}`;
+        const moon = satellitePosition(origin, satIndex, planet.satellites.length, orbit);
+        nodes.push({
+          id: topicId,
+          kind: "topic",
+          label: satellite.topic,
+          x: moon.x,
+          y: moon.y,
+          r: Math.max(6, Math.round(satellite.radius * 0.72)),
+          count: satellite.count,
+          attention: attention.has(`${planet.subject}/${satellite.topic}`) || attention.has(satellite.topic),
+          showLabel: false,
+        });
+      });
     }
   });
 
@@ -464,6 +489,13 @@ export function layoutScene(
   }
 
   const visible = nodes.filter((node) => node.kind !== "school" || focus.level === 1);
+  if (focus.level === 1) {
+    return {
+      nodes,
+      edges,
+      camera: { x: 0, y: 0, w: 920, h: 560 },
+    };
+  }
   const xs = visible.map((node) => node.x);
   const ys = visible.map((node) => node.y);
   const minX = Math.min(...xs, CX) - 80;

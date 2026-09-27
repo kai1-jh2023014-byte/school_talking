@@ -137,8 +137,9 @@ describe("buildSchoolSnapshot", () => {
       { level: 1 },
       ["数学"],
     );
-    expect(scene.nodes.every((node) => node.kind === "school" || node.kind === "subject")).toBe(true);
     expect(scene.nodes.filter((node) => node.kind === "question")).toHaveLength(0);
+    expect(scene.nodes.some((node) => node.kind === "subject")).toBe(true);
+    expect(scene.nodes.some((node) => node.kind === "topic")).toBe(true);
   });
 
   it("keeps the fingerprint stable for the same DATA and stale when follow-ups change", () => {

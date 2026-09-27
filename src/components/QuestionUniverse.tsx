@@ -40,6 +40,23 @@ const FILL: Record<string, string> = {
   情報: "#8b7cc9",
 };
 
+function dustField() {
+  const out: { x: number; y: number; r: number; o: number }[] = [];
+  let seed = 20260924;
+  for (let i = 0; i < 90; i += 1) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    out.push({
+      x: seed % WIDTH,
+      y: (seed >>> 8) % HEIGHT,
+      r: 0.45 + (seed % 10) / 14,
+      o: 0.22 + (seed % 7) / 18,
+    });
+  }
+  return out;
+}
+
+const DUST = dustField();
+
 function colorFor(node: GraphNode): string {
   if (node.kind === "subject") return FILL[node.label] ?? "#9aa3b5";
   if (node.kind === "school") return "#1c2740";
@@ -98,7 +115,15 @@ export function QuestionUniverse({
   function onNode(node: GraphNode) {
     if (node.kind === "school") setFocus({ level: 1 });
     if (node.kind === "subject") setFocus({ level: 2, subject: node.label });
-    if (node.kind === "topic" && "subject" in focus) setFocus({ level: 3, subject: focus.subject, topic: node.label });
+    if (node.kind === "topic") {
+      const raw = node.id.replace(/^topic:/, "");
+      const slash = raw.indexOf("/");
+      if (slash > 0) {
+        setFocus({ level: 3, subject: raw.slice(0, slash), topic: raw.slice(slash + 1) });
+      } else if ("subject" in focus) {
+        setFocus({ level: 3, subject: focus.subject, topic: node.label });
+      }
+    }
     if (node.kind === "cluster" && "topic" in focus) {
       setFocus({ level: 4, subject: focus.subject, topic: focus.topic, cluster: node.label });
     }
@@ -141,7 +166,7 @@ export function QuestionUniverse({
             viewBox={`${camera.x} ${camera.y} ${camera.w} ${camera.h}`}
             className="h-auto w-full cursor-grab active:cursor-grabbing"
             role="img"
-            aria-label="学校の質問の関係図。クリックで詳しくなります"
+            aria-label="学校の質問を、教科の惑星と分野の衛星で表した図"
             onPointerDown={(event) => {
               drag.current = { x: event.clientX, y: event.clientY, cx: camera.x, cy: camera.y };
             }}
@@ -167,7 +192,40 @@ export function QuestionUniverse({
               }));
             }}
           >
-            <rect x={camera.x} y={camera.y} width={camera.w} height={camera.h} fill="#0b1224" />
+            <defs>
+              <radialGradient id="universe-space" cx="50%" cy="45%" r="70%">
+                <stop offset="0%" stopColor="#152244" />
+                <stop offset="70%" stopColor="#0b1224" />
+                <stop offset="100%" stopColor="#070b16" />
+              </radialGradient>
+              <filter id="universe-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <rect x={camera.x} y={camera.y} width={camera.w} height={camera.h} fill="url(#universe-space)" />
+            {focus.level === 1
+              ? DUST.map((dot, index) => (
+                  <circle key={index} cx={dot.x} cy={dot.y} r={dot.r} fill="#f4efe4" opacity={dot.o} />
+                ))
+              : null}
+            {scene.nodes
+              .filter((node) => node.kind === "subject" && node.orbit)
+              .map((node) => (
+                <circle
+                  key={`orbit-${node.id}`}
+                  cx={node.x}
+                  cy={node.y}
+                  r={node.orbit}
+                  fill="none"
+                  stroke={colorFor(node)}
+                  strokeOpacity="0.22"
+                  strokeDasharray="3 7"
+                />
+              ))}
             {scene.edges.map((edge) => {
               const from = scene.nodes.find((node) => node.id === edge.from);
               const to = scene.nodes.find((node) => node.id === edge.to);
@@ -196,7 +254,16 @@ export function QuestionUniverse({
                   onNode(node);
                 }}
               >
-                {node.attention ? (
+                {node.kind === "subject" && (node.attention || (focus.level === 1 && node.count > 0)) ? (
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={node.r + 10}
+                    fill={colorFor(node)}
+                    opacity="0.18"
+                    filter="url(#universe-glow)"
+                  />
+                ) : node.attention ? (
                   <circle cx={node.x} cy={node.y} r={node.r + 8} fill={colorFor(node)} opacity="0.2" />
                 ) : null}
                 <circle
@@ -205,8 +272,18 @@ export function QuestionUniverse({
                   r={node.r}
                   fill={colorFor(node)}
                   stroke="#fffaf1"
-                  strokeWidth={node.attention ? 2.2 : 1}
+                  strokeWidth={node.attention || node.kind === "subject" ? 2 : 1}
                 />
+                {node.kind === "subject" ? (
+                  <circle
+                    cx={node.x - node.r * 0.28}
+                    cy={node.y - node.r * 0.3}
+                    r={node.r * 0.18}
+                    fill="#fffaf1"
+                    opacity="0.22"
+                  />
+                ) : null}
+                {node.showLabel !== false ? (
                 <text
                   x={node.x}
                   y={node.y + node.r + 14}
@@ -217,11 +294,14 @@ export function QuestionUniverse({
                 >
                   {node.kind === "question" ? node.label.slice(0, 16) : node.label}
                 </text>
+                ) : null}
               </g>
             ))}
           </svg>
         </div>
-        <p className="mt-3 text-xs text-muted">ドラッグで移動、ホイールで拡大。最初は教科だけを出しています。</p>
+        <p className="mt-3 text-xs text-muted">
+          教科が惑星、分野が衛星です。クリックで開き、ドラッグで移動、ホイールで拡大できます。個別の質問は分野まで進んだときだけ出します。
+        </p>
       </div>
       <aside className="card max-h-[42rem] space-y-5 overflow-auto p-5">
         <DetailPanel

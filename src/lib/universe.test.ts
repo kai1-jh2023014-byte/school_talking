@@ -4,6 +4,7 @@ import {
   bodyRadius,
   buildUniverse,
   growthLabel,
+  layoutScene,
   planetPosition,
   satelliteOrbit,
 } from "./universe";
@@ -167,6 +168,28 @@ describe("buildUniverse", () => {
 });
 
 describe("layout helpers", () => {
+  it("places topic moons around planets at school level without question stars", () => {
+    const scene = layoutScene(
+      {
+        planets: [
+          {
+            subject: "数学",
+            count: 4,
+            radius: 28,
+            satellites: [
+              { topic: "二次関数", count: 3, radius: 12, clusters: [] },
+              { topic: "確率", count: 1, radius: 10, clusters: [] },
+            ],
+          },
+        ],
+      },
+      { level: 1 },
+      [],
+    );
+    expect(scene.nodes.some((node) => node.kind === "subject" && node.orbit)).toBe(true);
+    expect(scene.nodes.filter((node) => node.kind === "topic")).toHaveLength(2);
+    expect(scene.nodes.filter((node) => node.kind === "question")).toHaveLength(0);
+  });
   it("places planets on a ring and keeps satellite orbits outside the planet", () => {
     const a = planetPosition(0, 6, 400, 280, 240, 180);
     const b = planetPosition(3, 6, 400, 280, 240, 180);
