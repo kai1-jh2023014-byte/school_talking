@@ -68,9 +68,11 @@ function colorFor(node: GraphNode): string {
 export function QuestionUniverse({
   data,
   onRefreshAnalysis,
+  compact = false,
 }: {
   data: UniverseScreenData;
-  onRefreshAnalysis: () => Promise<void>;
+  onRefreshAnalysis?: () => Promise<void>;
+  compact?: boolean;
 }) {
   const [focus, setFocus] = useState<Focus>({ level: 1 });
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -137,6 +139,7 @@ export function QuestionUniverse({
   }
 
   async function refresh() {
+    if (!onRefreshAnalysis) return;
     setAnalyzing(true);
     try {
       await onRefreshAnalysis();
@@ -146,7 +149,7 @@ export function QuestionUniverse({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+    <div className={compact ? "space-y-3" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]"}>
       <div>
         <div className="mb-3 flex flex-wrap gap-2">
           <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setFocus({ level: 1 })}>
@@ -158,7 +161,7 @@ export function QuestionUniverse({
             </button>
           ) : null}
           <span className="self-center text-xs text-muted">
-            {focus.level === 1 ? "教科" : focus.level === 2 ? "分野" : focus.level === 3 ? "質問の集まり" : "個別の質問"}
+            {focus.level === 1 ? "教科の惑星" : focus.level === 2 ? "分野の衛星" : focus.level === 3 ? "問いの循環" : "個別の質問"}
           </span>
         </div>
         <div className="overflow-hidden rounded-3xl border border-[#1b2744] bg-[#0b1224] shadow-slip">
@@ -299,10 +302,13 @@ export function QuestionUniverse({
             ))}
           </svg>
         </div>
+        {compact ? null : (
         <p className="mt-3 text-xs text-muted">
           教科が惑星、分野が衛星です。クリックで開き、ドラッグで移動、ホイールで拡大できます。個別の質問は分野まで進んだときだけ出します。
         </p>
+        )}
       </div>
+      {compact ? null : (
       <aside className="card max-h-[42rem] space-y-5 overflow-auto p-5">
         <DetailPanel
           data={data}
@@ -313,8 +319,10 @@ export function QuestionUniverse({
           onRefresh={() => void refresh()}
           onShare={() => setShareOpen(true)}
           onDismiss={(key) => setDismissed((prev) => [...prev, key])}
+          showAi={Boolean(onRefreshAnalysis)}
         />
       </aside>
+      )}
     </div>
   );
 }
@@ -328,6 +336,7 @@ function DetailPanel({
   onRefresh,
   onShare,
   onDismiss,
+  showAi = true,
 }: {
   data: UniverseScreenData;
   focus: Focus;
@@ -337,6 +346,7 @@ function DetailPanel({
   onRefresh: () => void;
   onShare: () => void;
   onDismiss: (key: string) => void;
+  showAi?: boolean;
 }) {
   const insight = data.insight;
   const analysis = insight?.analysis;
@@ -353,7 +363,9 @@ function DetailPanel({
             直近{data.snapshot.windowDays}日：{data.snapshot.recentTotal}件 ／ その前：{data.snapshot.previousTotal}件
           </p>
         </section>
-        <AnalysisBlock insight={insight} stale={data.insightStale} analyzing={analyzing} onRefresh={onRefresh} />
+        {showAi ? (
+          <AnalysisBlock insight={insight} stale={data.insightStale} analyzing={analyzing} onRefresh={onRefresh} />
+        ) : null}
         {analysis?.attentionAreas.length ? (
           <section>
             <h3 className="text-sm font-semibold">注目候補</h3>
@@ -428,7 +440,9 @@ function DetailPanel({
           </>
         ) : null}
       </section>
-      <AnalysisBlock insight={insight} stale={data.insightStale} analyzing={analyzing} onRefresh={onRefresh} filter={topic?.key} />
+      {showAi ? (
+        <AnalysisBlock insight={insight} stale={data.insightStale} analyzing={analyzing} onRefresh={onRefresh} filter={topic?.key} />
+      ) : null}
       {topic ? (
         <Actions
           topic={topic}

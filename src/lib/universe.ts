@@ -1,8 +1,8 @@
 import { SUBJECT_RULES } from "./classify";
 import { SUBJECTS } from "./constants";
 import { normalizeStatus } from "./questions";
-import { followUpsOf, promptsOf } from "./prompts";
-import type { Question, QuestionStatus, StoreData } from "./types";
+import { followUpsOf, isAudienceMember, promptsOf, responsesOf, teacherHomerooms } from "./prompts";
+import type { Question, QuestionStatus, StoreData, User } from "./types";
 
 export const SAMPLE_LIMIT = 8;
 export const UNIVERSE_WINDOW_DAYS = 30;
@@ -168,6 +168,47 @@ function sortStars(stars: UniverseStar[]): UniverseStar[] {
     if (byTime !== 0) return byTime;
     return a.id.localeCompare(b.id);
   });
+}
+
+export function scopeStoreForUniverse(store: StoreData, user: User): StoreData {
+  if (user.role === "admin") return store;
+  if (user.role === "student") {
+    const prompts = promptsOf(store).filter((prompt) => isAudienceMember(user, prompt));
+    const promptIds = new Set(prompts.map((prompt) => prompt.id));
+    return {
+      ...store,
+      questions: store.questions.filter((question) => question.studentId === user.id),
+      prompts,
+      promptResponses: responsesOf(store).filter((item) => item.studentId === user.id && promptIds.has(item.promptId)),
+      followUps: followUpsOf(store).filter((item) => !item.homeroom || item.homeroom === user.homeroom),
+      schoolInsight: undefined,
+    };
+  }
+  const rooms = new Set(teacherHomerooms(user, store));
+  const studentIds = new Set(
+    store.users
+      .filter((item) => item.role === "student" && item.homeroom && rooms.has(item.homeroom))
+      .map((item) => item.id),
+  );
+  const prompts = promptsOf(store).filter((prompt) => {
+    const audience = prompt.audience;
+    if (audience.type === "class") return rooms.has(audience.homeroom);
+    if (audience.type === "grade") {
+      return store.users.some((item) => studentIds.has(item.id) && item.grade === audience.grade);
+    }
+    return audience.studentIds.some((id) => studentIds.has(id)) || prompt.teacherId === user.id;
+  });
+  const promptIds = new Set(prompts.map((prompt) => prompt.id));
+  return {
+    ...store,
+    questions: store.questions.filter((question) => studentIds.has(question.studentId)),
+    prompts,
+    promptResponses: responsesOf(store).filter((item) => promptIds.has(item.promptId) && studentIds.has(item.studentId)),
+    followUps: followUpsOf(store).filter(
+      (item) => item.actorId === user.id || (item.homeroom ? rooms.has(item.homeroom) : false),
+    ),
+    schoolInsight: undefined,
+  };
 }
 
 export function buildUniverse(store: StoreData, now = new Date()): UniversePayload {

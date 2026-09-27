@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { QuestionStatusChip, UrgencyChip } from "@/components/QuestionChips";
 import { StatusBadge } from "@/components/StatusBadge";
+import { UniversePreview } from "@/components/UniversePreview";
 import { usePoll } from "@/hooks/usePoll";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
@@ -76,6 +77,12 @@ function StudentHome() {
       ) : null}
 
       {error ? <p className="text-rose">{error}</p> : null}
+
+      <UniversePreview
+        title="自分の問いの宇宙"
+        caption="自分の質問と、先生から届いた問いが惑星と衛星になります。他の生徒の内容は出ません。"
+        href="/student/universe"
+      />
 
       {pending.length > 0 ? (
         <section className="space-y-3">

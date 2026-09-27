@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Question, StoreData } from "./types";
+import type { Question, StoreData, User } from "./types";
 import {
   bodyRadius,
   buildUniverse,
@@ -7,6 +7,7 @@ import {
   layoutScene,
   planetPosition,
   satelliteOrbit,
+  scopeStoreForUniverse,
 } from "./universe";
 
 function q(partial: Partial<Question> & Pick<Question, "id" | "createdAt" | "subject" | "topic" | "status">): Question {
@@ -164,6 +165,45 @@ describe("buildUniverse", () => {
     const universe = buildUniverse(store, now);
     expect(universe.total).toBe(0);
     expect(universe.planets.every((planet) => planet.satellites.length === 0)).toBe(true);
+  });
+});
+
+describe("scopeStoreForUniverse", () => {
+  it("hides another student's questions from a student-scoped universe", () => {
+    const hanako: User = {
+      id: "s-a",
+      loginId: "2A-01",
+      passwordHash: "x",
+      name: "花子",
+      role: "student",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      homeroom: "2年A組",
+    };
+    const taro: User = { ...hanako, id: "s-b", loginId: "2B-08", name: "太郎", homeroom: "2年B組" };
+    const store: StoreData = {
+      users: [hanako, taro],
+      questions: [
+        q({
+          id: "mine",
+          studentId: "s-a",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          subject: "数学",
+          topic: "二次関数",
+          status: "answered",
+        }),
+        q({
+          id: "other",
+          studentId: "s-b",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          subject: "英語",
+          topic: "関係詞",
+          status: "answered",
+        }),
+      ],
+    };
+    const scoped = scopeStoreForUniverse(store, hanako);
+    expect(scoped.questions.map((item) => item.id)).toEqual(["mine"]);
   });
 });
 
