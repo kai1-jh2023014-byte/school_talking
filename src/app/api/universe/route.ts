@@ -3,6 +3,7 @@ import { isUser, requireUser, toSafeTeacher } from "@/lib/auth";
 import { buildSchoolSnapshot, insightStale } from "@/lib/insights";
 import { readStore } from "@/lib/store";
 import { buildUniverse, scopeStoreForUniverse, toUniverseView } from "@/lib/universe";
+import { buildUniverseLoops } from "@/lib/loop-graph";
 
 export async function GET() {
   const user = await requireUser();
@@ -18,12 +19,15 @@ export async function GET() {
       ? store.users.filter((item) => item.role === "teacher" && item.status !== "disabled").map(toSafeTeacher)
       : [];
 
+  const loops = buildUniverseLoops(scoped);
   return NextResponse.json({
     ...universe,
     snapshot,
     insight: cached ?? null,
     insightStale: stale,
     teachers,
+    loops,
+    featuredQuestionId: loops[0]?.questionId ?? null,
     view: user.role === "admin" ? "school" : user.role === "teacher" ? "class" : "mine",
   });
 }

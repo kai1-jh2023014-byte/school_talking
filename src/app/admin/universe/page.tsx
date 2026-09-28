@@ -44,9 +44,9 @@ function UniverseView() {
     <div className="space-y-6">
       <div>
         <p className="text-xs tracking-[0.2em] text-terracotta">QUESTION UNIVERSE</p>
-        <h1 className="mt-1 font-serif text-3xl">学校の「分からない」を宇宙として見る</h1>
+        <h1 className="mt-1 font-serif text-3xl">一つの質問が、次の問いへつながっていく</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted">
-          教科は惑星、分野はそのまわりの衛星、質問は小さな星です。大きいほど質問が多く、光っている天体は直近30日の質問数がその前の30日より増えています。原因までは断定しません。
+          星は質問です。線は、先生・確認・回答・関連する問いへのつながりです。クリックすると、その質問の循環が開きます。
         </p>
       </div>
       {error ? <p className="text-rose">{error}</p> : null}

@@ -125,7 +125,7 @@ function TeacherHome() {
 
       <UniversePreview
         title="担当クラスの宇宙"
-        caption="担当クラスの質問が惑星と衛星と星になります。"
+        caption="クラスの質問を、次の確認や授業につなげられます。"
         href="/teacher/universe"
       />
 

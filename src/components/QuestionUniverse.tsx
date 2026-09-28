@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
+import { LoopConstellation } from "@/components/LoopConstellation";
+import { QuestionLoopPanel } from "@/components/QuestionLoopPanel";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
+import { relatedStarLinks, type QuestionLoop } from "@/lib/loop-graph";
 import { LOOP_LABEL } from "@/lib/loop";
 import { matchTeachers } from "@/lib/match";
 import type { CachedSchoolInsight, SafeTeacher, SchoolAnalysis, SuggestedAction } from "@/lib/types";
@@ -37,6 +40,8 @@ export type UniverseScreenData = {
   insight: CachedSchoolInsight | null;
   insightStale: boolean;
   teachers: SafeTeacher[];
+  loops?: QuestionLoop[];
+  featuredQuestionId?: string | null;
 };
 
 const FILL: Record<string, string> = {
@@ -167,6 +172,25 @@ export function QuestionUniverse({
     });
   }, [data.planets]);
 
+  const loops = useMemo(() => data.loops ?? [], [data.loops]);
+  const starPoints = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    laidOut.forEach((planet) => {
+      planet.satellites.forEach((satellite) => {
+        satellite.stars.forEach(({ star, point }) => map.set(star.id, point));
+      });
+    });
+    return map;
+  }, [laidOut]);
+  const relatedLinks = useMemo(() => relatedStarLinks(loops), [loops]);
+  const activeLoop = selection.kind === "star" ? loops.find((item) => item.questionId === selection.id) : undefined;
+
+  function openQuestion(id: string) {
+    const loop = loops.find((item) => item.questionId === id);
+    if (!loop) return;
+    setSelection({ kind: "star", subject: loop.subject, topic: loop.topic, id });
+  }
+
   useEffect(() => {
     const starIds = data.planets.flatMap((planet) =>
       planet.satellites.flatMap((satellite) => satellite.samples.map((star) => star.id)),
@@ -263,7 +287,7 @@ export function QuestionUniverse({
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             className="universe-canvas h-auto w-full"
             role="img"
-            aria-label="学校の質問を、教科の惑星と分野の衛星、個別の質問の星で表した図"
+            aria-label="質問が学校の中で次の問い・先生・確認につながっていく様子"
             onClick={() => {
               setSelection({ kind: "school" });
               setShareOpen(false);
@@ -428,6 +452,37 @@ export function QuestionUniverse({
                 );
               })}
 
+              {relatedLinks.map((link) => {
+                const from = starPoints.get(link.from);
+                const to = starPoints.get(link.to);
+                if (!from || !to) return null;
+                const lit = selection.kind === "star" && (selection.id === link.from || selection.id === link.to);
+                return (
+                  <g key={`${link.from}-${link.to}`}>
+                    <line
+                      className={lit ? "universe-loop-edge" : "universe-edge"}
+                      x1={from.x}
+                      y1={from.y}
+                      x2={to.x}
+                      y2={to.y}
+                      stroke="#e6dcc8"
+                      strokeOpacity={lit ? 0.7 : 0.22}
+                      strokeWidth={lit ? 1.4 : 0.8}
+                    />
+                  </g>
+                );
+              })}
+
+              {activeLoop ? (
+                <LoopConstellation
+                  loop={activeLoop}
+                  origin={{ x: CX - 30, y: CY - 20 }}
+                  onPick={(node) => {
+                    if ((node.kind === "related" || node.kind === "question") && node.refId) openQuestion(node.refId);
+                  }}
+                />
+              ) : null}
+
               {reduceMotion
                 ? null
                 : fx.map((item) => {
@@ -486,26 +541,30 @@ export function QuestionUniverse({
             <li>衛星＝分野</li>
             <li>星＝個別の質問</li>
             <li>大きさ＝質問数</li>
-            <li>光＝直近30日の増加</li>
+            <li>線＝つながり</li>
           </ul>
         )}
       </div>
       {compact ? null : (
         <aside className="card max-h-[42rem] space-y-5 overflow-auto p-5">
-          <DetailPanel
-            data={data}
-            focus={focus}
-            topic={topicFocus}
-            analyzing={analyzing}
-            shareOpen={shareOpen}
-            dismissed={dismissed}
-            onRefresh={() => void refresh()}
-            onShare={() => setShareOpen(true)}
-            onDismiss={(key) => setDismissed((prev) => [...prev, key])}
-            showAi={Boolean(onRefreshAnalysis)}
-            onPickPlanet={(subject) => setSelection({ kind: "planet", subject })}
-            onPickTopic={(subject, topic) => setSelection({ kind: "satellite", subject, topic })}
-          />
+          {activeLoop ? (
+            <QuestionLoopPanel loop={activeLoop} onOpenRelated={openQuestion} showActions={Boolean(onRefreshAnalysis)} />
+          ) : (
+            <DetailPanel
+              data={data}
+              focus={focus}
+              topic={topicFocus}
+              analyzing={analyzing}
+              shareOpen={shareOpen}
+              dismissed={dismissed}
+              onRefresh={() => void refresh()}
+              onShare={() => setShareOpen(true)}
+              onDismiss={(key) => setDismissed((prev) => [...prev, key])}
+              showAi={Boolean(onRefreshAnalysis)}
+              onPickPlanet={(subject) => setSelection({ kind: "planet", subject })}
+              onPickTopic={(subject, topic) => setSelection({ kind: "satellite", subject, topic })}
+            />
+          )}
         </aside>
       )}
     </div>

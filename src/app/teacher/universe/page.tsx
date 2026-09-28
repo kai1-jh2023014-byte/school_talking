@@ -55,7 +55,7 @@ function ClassUniverse() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs tracking-[0.2em] text-terracotta">CLASS UNIVERSE</p>
-          <h1 className="mt-1 font-serif text-3xl">{data.homeroom}の問い</h1>
+          <h1 className="mt-1 font-serif text-3xl">{data.homeroom}の問いを、次につなげる</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">{data.disclaimer}</p>
         </div>
         <select
@@ -72,7 +72,7 @@ function ClassUniverse() {
       </div>
       {error ? <p className="text-rose">{error}</p> : null}
       <section className="card p-6">
-        <h2 className="font-serif text-2xl">確認候補</h2>
+        <h2 className="font-serif text-2xl">次につなげられる質問</h2>
         {data.confirmCandidates.length === 0 ? (
           <p className="mt-3 text-sm text-muted">いま追加確認を急ぐ材料は少ないです。</p>
         ) : (
@@ -115,7 +115,7 @@ function ClassUniverse() {
                   href={`/teacher/prompts/new?subject=${encodeURIComponent(item.subject)}&topic=${encodeURIComponent(item.topic)}&homeroom=${encodeURIComponent(data.homeroom)}`}
                   className="btn-navy text-xs"
                 >
-                  追加で問いを送る
+                  このテーマの確認を送る
                 </a>
                 <button
                   type="button"

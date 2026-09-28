@@ -111,8 +111,20 @@ body {
   animation: universe-fx-ripple 0.65s ease-out 1 forwards;
 }
 
-.universe-fx-halo {
-  animation: universe-fx-halo 0.72s ease-out 1 forwards;
+.universe-loop-edge {
+  stroke-dasharray: 5 7;
+  animation: universe-flow 0.7s ease-out 1;
+}
+
+@keyframes universe-flow {
+  from {
+    stroke-dashoffset: 48;
+    opacity: 0.15;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
 }
 
 @keyframes universe-fx-particle {

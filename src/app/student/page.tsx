@@ -80,7 +80,7 @@ function StudentHome() {
 
       <UniversePreview
         title="自分の問いの宇宙"
-        caption="自分の質問が星、分野が衛星、教科が惑星です。"
+        caption="自分の質問が、いまどこまでつながっているかが見えます。"
         href="/student/universe"
       />
 
