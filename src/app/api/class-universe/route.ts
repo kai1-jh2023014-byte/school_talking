@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isUser, jsonError, requireUser } from "@/lib/auth";
 import { buildClassUniverse, canViewClass, teacherHomerooms } from "@/lib/prompts";
+import { enrichClassTopic } from "@/lib/loop";
 import { readStore } from "@/lib/store";
 
 export async function GET(request: Request) {
@@ -12,8 +13,17 @@ export async function GET(request: Request) {
   const homeroom = searchParams.get("homeroom") || rooms[0];
   if (!homeroom) return jsonError("表示できるクラスがありません", 404);
   if (!canViewClass(user, homeroom, store)) return jsonError("このクラスは見られません", 403);
+  const view = buildClassUniverse(store, homeroom);
   return NextResponse.json({
     homerooms: rooms,
-    ...buildClassUniverse(store, homeroom),
+    ...view,
+    topics: view.topics.map((topic) => ({
+      ...topic,
+      ...enrichClassTopic(store, homeroom, topic),
+    })),
+    confirmCandidates: view.confirmCandidates.map((topic) => ({
+      ...topic,
+      ...enrichClassTopic(store, homeroom, topic),
+    })),
   });
 }

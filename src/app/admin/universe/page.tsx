@@ -44,9 +44,9 @@ function UniverseView() {
     <div className="space-y-6">
       <div>
         <p className="text-xs tracking-[0.2em] text-terracotta">QUESTION UNIVERSE</p>
-        <h1 className="mt-1 font-serif text-3xl">学校の「分からない」から、次の手を見つける</h1>
+        <h1 className="mt-1 font-serif text-3xl">一つの質問が、次の問いへつながっていく</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted">
-          教科から分野、質問の集まりへと段階的に開きます。数字は集計、文章はAI分析です。最終判断は人のものです。
+          星は質問です。線は、先生・確認・回答・関連する問いへのつながりです。クリックすると、その質問の循環が開きます。
         </p>
       </div>
       {error ? <p className="text-rose">{error}</p> : null}

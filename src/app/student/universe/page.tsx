@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { api } from "@/lib/client";
+import type { QuestionLoop } from "@/lib/loop-graph";
+import type { ChainEvent } from "@/lib/loop";
 import type { MyTopicState } from "@/lib/prompts";
 
 export default function StudentUniversePage() {
@@ -15,7 +17,7 @@ export default function StudentUniversePage() {
 
 function MyUniverse() {
   const [data, setData] = useState<{
-    topics: MyTopicState[];
+    topics: (MyTopicState & { chain?: ChainEvent[]; loops?: QuestionLoop[] })[];
     reviewCandidates: MyTopicState[];
     disclaimer: string;
   } | null>(null);
@@ -34,11 +36,11 @@ function MyUniverse() {
     <div className="space-y-6">
       <div>
         <p className="text-xs tracking-[0.2em] text-terracotta">MY UNIVERSE</p>
-        <h1 className="mt-1 font-serif text-3xl">自分の問いを振り返る</h1>
+        <h1 className="mt-1 font-serif text-3xl">自分の質問は、いまどこまでつながっているか</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">{data.disclaimer}</p>
       </div>
       <section className="card p-6">
-        <h2 className="font-serif text-2xl">確認してみるとよさそうな分野</h2>
+        <h2 className="font-serif text-2xl">この分野から続けられること</h2>
         {data.reviewCandidates.length === 0 ? (
           <p className="mt-3 text-sm text-muted">まだ復習候補はありません。質問や先生からの問いに答えると、ここに集まります。</p>
         ) : (
@@ -76,6 +78,35 @@ function MyUniverse() {
                 </ul>
               </div>
             ) : null}
+            {item.loops?.map((loop) => (
+              <ol key={loop.questionId} className="mt-4 space-y-1 border-t border-line pt-3 text-sm">
+                <li className="font-medium">{loop.body}</li>
+                {loop.steps.map((step, index) => (
+                  <li key={`${loop.questionId}-${step.n}`}>
+                    {index > 0 ? <p className="text-center text-muted">↓</p> : null}
+                    <p>
+                      {step.title}
+                      {step.data ? <span className="text-muted">（{step.data}）</span> : null}
+                    </p>
+                    <p className="text-muted">{step.body}</p>
+                  </li>
+                ))}
+              </ol>
+            ))}
+            {!item.loops?.length && item.chain && item.chain.length > 0 ? (
+              <ol className="mt-4 space-y-2 border-t border-line pt-3 text-sm">
+                {item.chain.map((event, index) => (
+                  <li key={`${event.at}-${index}`}>
+                    {index > 0 ? <p className="text-center text-muted">↓</p> : null}
+                    <p className="font-medium">{event.title}</p>
+                    {event.detail ? <p className="text-muted">{event.detail}</p> : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <a href="/student/ask" className="btn-ghost mt-3 inline-flex text-xs">
+              つながる問いを書く
+            </a>
           </article>
         ))}
       </section>

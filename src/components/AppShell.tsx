@@ -22,7 +22,7 @@ const NAV: Record<PublicUser["role"], { href: string; label: string }[]> = {
   admin: [
     { href: "/admin", label: "分析" },
     { href: "/admin/staffroom", label: "職員室" },
-    { href: "/admin/universe", label: "Question Universe" },
+    { href: "/admin/universe", label: "質問宇宙" },
     { href: "/admin/users", label: "名簿" },
     { href: "/admin/questions", label: "質問履歴" },
   ],

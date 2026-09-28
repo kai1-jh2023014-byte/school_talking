@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { Question, StoreData } from "./types";
+import type { Question, StoreData, User } from "./types";
 import {
   bodyRadius,
   buildUniverse,
   growthLabel,
+  layoutScene,
   planetPosition,
   satelliteOrbit,
+  scopeStoreForUniverse,
 } from "./universe";
 
 function q(partial: Partial<Question> & Pick<Question, "id" | "createdAt" | "subject" | "topic" | "status">): Question {
@@ -166,7 +168,68 @@ describe("buildUniverse", () => {
   });
 });
 
+describe("scopeStoreForUniverse", () => {
+  it("hides another student's questions from a student-scoped universe", () => {
+    const hanako: User = {
+      id: "s-a",
+      loginId: "2A-01",
+      passwordHash: "x",
+      name: "花子",
+      role: "student",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      homeroom: "2年A組",
+    };
+    const taro: User = { ...hanako, id: "s-b", loginId: "2B-08", name: "太郎", homeroom: "2年B組" };
+    const store: StoreData = {
+      users: [hanako, taro],
+      questions: [
+        q({
+          id: "mine",
+          studentId: "s-a",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          subject: "数学",
+          topic: "二次関数",
+          status: "answered",
+        }),
+        q({
+          id: "other",
+          studentId: "s-b",
+          createdAt: "2026-09-10T08:00:00.000Z",
+          subject: "英語",
+          topic: "関係詞",
+          status: "answered",
+        }),
+      ],
+    };
+    const scoped = scopeStoreForUniverse(store, hanako);
+    expect(scoped.questions.map((item) => item.id)).toEqual(["mine"]);
+  });
+});
+
 describe("layout helpers", () => {
+  it("places topic moons around planets at school level without question stars", () => {
+    const scene = layoutScene(
+      {
+        planets: [
+          {
+            subject: "数学",
+            count: 4,
+            radius: 28,
+            satellites: [
+              { topic: "二次関数", count: 3, radius: 12, clusters: [] },
+              { topic: "確率", count: 1, radius: 10, clusters: [] },
+            ],
+          },
+        ],
+      },
+      { level: 1 },
+      [],
+    );
+    expect(scene.nodes.some((node) => node.kind === "subject" && node.orbit)).toBe(true);
+    expect(scene.nodes.filter((node) => node.kind === "topic")).toHaveLength(2);
+    expect(scene.nodes.filter((node) => node.kind === "question")).toHaveLength(0);
+  });
   it("places planets on a ring and keeps satellite orbits outside the planet", () => {
     const a = planetPosition(0, 6, 400, 280, 240, 180);
     const b = planetPosition(3, 6, 400, 280, 240, 180);

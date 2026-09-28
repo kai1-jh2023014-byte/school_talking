@@ -2,23 +2,32 @@ import { NextResponse } from "next/server";
 import { isUser, requireUser, toSafeTeacher } from "@/lib/auth";
 import { buildSchoolSnapshot, insightStale } from "@/lib/insights";
 import { readStore } from "@/lib/store";
-import { buildUniverse, toUniverseView } from "@/lib/universe";
+import { buildUniverse, scopeStoreForUniverse, toUniverseView } from "@/lib/universe";
+import { buildUniverseLoops } from "@/lib/loop-graph";
 
 export async function GET() {
-  const user = await requireUser(["admin"]);
+  const user = await requireUser();
   if (!isUser(user)) return user;
   const store = await readStore();
-  const universe = toUniverseView(buildUniverse(store));
-  const snapshot = buildSchoolSnapshot(store);
-  const cached = store.schoolInsight;
-  const stale = insightStale(cached, snapshot.fingerprint);
-  const teachers = store.users.filter((item) => item.role === "teacher" && item.status !== "disabled").map(toSafeTeacher);
+  const scoped = scopeStoreForUniverse(store, user);
+  const universe = toUniverseView(buildUniverse(scoped));
+  const snapshot = buildSchoolSnapshot(scoped);
+  const cached = user.role === "admin" ? store.schoolInsight : null;
+  const stale = user.role === "admin" ? insightStale(cached ?? undefined, snapshot.fingerprint) : false;
+  const teachers =
+    user.role === "admin"
+      ? store.users.filter((item) => item.role === "teacher" && item.status !== "disabled").map(toSafeTeacher)
+      : [];
 
+  const loops = buildUniverseLoops(scoped);
   return NextResponse.json({
     ...universe,
     snapshot,
     insight: cached ?? null,
     insightStale: stale,
     teachers,
+    loops,
+    featuredQuestionId: loops[0]?.questionId ?? null,
+    view: user.role === "admin" ? "school" : user.role === "teacher" ? "class" : "mine",
   });
 }

@@ -1,8 +1,8 @@
 import { SUBJECT_RULES } from "./classify";
 import { SUBJECTS } from "./constants";
 import { normalizeStatus } from "./questions";
-import { promptsOf } from "./prompts";
-import type { Question, QuestionStatus, StoreData } from "./types";
+import { followUpsOf, isAudienceMember, promptsOf, responsesOf, teacherHomerooms } from "./prompts";
+import type { Question, QuestionStatus, StoreData, User } from "./types";
 
 export const SAMPLE_LIMIT = 8;
 export const UNIVERSE_WINDOW_DAYS = 30;
@@ -37,6 +37,8 @@ export type UniverseSatellite = {
   stars: UniverseStar[];
   checkAnswers: number;
   promptCount: number;
+  recheckCount: number;
+  followUpCount: number;
 };
 
 export type UniversePlanet = {
@@ -80,6 +82,8 @@ export type GraphNode = {
   r: number;
   count: number;
   attention?: boolean;
+  orbit?: number;
+  showLabel?: boolean;
 };
 
 export type GraphEdge = { from: string; to: string };
@@ -166,6 +170,47 @@ function sortStars(stars: UniverseStar[]): UniverseStar[] {
   });
 }
 
+export function scopeStoreForUniverse(store: StoreData, user: User): StoreData {
+  if (user.role === "admin") return store;
+  if (user.role === "student") {
+    const prompts = promptsOf(store).filter((prompt) => isAudienceMember(user, prompt));
+    const promptIds = new Set(prompts.map((prompt) => prompt.id));
+    return {
+      ...store,
+      questions: store.questions.filter((question) => question.studentId === user.id),
+      prompts,
+      promptResponses: responsesOf(store).filter((item) => item.studentId === user.id && promptIds.has(item.promptId)),
+      followUps: followUpsOf(store).filter((item) => !item.homeroom || item.homeroom === user.homeroom),
+      schoolInsight: undefined,
+    };
+  }
+  const rooms = new Set(teacherHomerooms(user, store));
+  const studentIds = new Set(
+    store.users
+      .filter((item) => item.role === "student" && item.homeroom && rooms.has(item.homeroom))
+      .map((item) => item.id),
+  );
+  const prompts = promptsOf(store).filter((prompt) => {
+    const audience = prompt.audience;
+    if (audience.type === "class") return rooms.has(audience.homeroom);
+    if (audience.type === "grade") {
+      return store.users.some((item) => studentIds.has(item.id) && item.grade === audience.grade);
+    }
+    return audience.studentIds.some((id) => studentIds.has(id)) || prompt.teacherId === user.id;
+  });
+  const promptIds = new Set(prompts.map((prompt) => prompt.id));
+  return {
+    ...store,
+    questions: store.questions.filter((question) => studentIds.has(question.studentId)),
+    prompts,
+    promptResponses: responsesOf(store).filter((item) => promptIds.has(item.promptId) && studentIds.has(item.studentId)),
+    followUps: followUpsOf(store).filter(
+      (item) => item.actorId === user.id || (item.homeroom ? rooms.has(item.homeroom) : false),
+    ),
+    schoolInsight: undefined,
+  };
+}
+
 export function buildUniverse(store: StoreData, now = new Date()): UniversePayload {
   const recentStart = new Date(now.getTime() - UNIVERSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const previousStart = new Date(now.getTime() - UNIVERSE_WINDOW_DAYS * 2 * 24 * 60 * 60 * 1000);
@@ -201,8 +246,10 @@ export function buildUniverse(store: StoreData, now = new Date()): UniversePaylo
           ),
           clusters: clusterQuestions(subject, topic, topicQuestions),
           stars,
-          checkAnswers: topicPrompts.filter((prompt) => prompt.kind === "understanding_check").length,
+          checkAnswers: topicPrompts.filter((prompt) => prompt.kind === "understanding_check" && (prompt.purpose ?? "initial") !== "recheck").length,
           promptCount: topicPrompts.filter((prompt) => prompt.kind === "teacher_question").length,
+          recheckCount: topicPrompts.filter((prompt) => prompt.purpose === "recheck" || Boolean(prompt.parentPromptId)).length,
+          followUpCount: followUpsOf(store).filter((item) => item.subject === subject && item.topic === topic).length,
         };
       })
       .sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic, "ja"));
@@ -296,6 +343,8 @@ export function toUniverseView(payload: UniversePayload): { planets: UniverseVie
         samples: satellite.stars.slice(0, SAMPLE_LIMIT),
         checkAnswers: satellite.checkAnswers,
         promptCount: satellite.promptCount,
+        recheckCount: satellite.recheckCount,
+        followUpCount: satellite.followUpCount,
       })),
     })),
   };
@@ -319,6 +368,8 @@ export function layoutScene(
         clusters: ClusterStat[];
         checkAnswers?: number;
         promptCount?: number;
+        recheckCount?: number;
+        followUpCount?: number;
       }>;
     }>;
   },
@@ -340,6 +391,7 @@ export function layoutScene(
     const seat = planetPosition(index, planets.length, CX, CY, inward ? 200 : 268, inward ? 148 : 196);
     const planetId = `subject:${planet.subject}`;
     if (focus.level === 1 || ("subject" in focus && focus.subject === planet.subject)) {
+      const orbit = satelliteOrbit(planet.radius, planet.satellites.length);
       nodes.push({
         id: planetId,
         kind: "subject",
@@ -349,8 +401,30 @@ export function layoutScene(
         r: planet.radius,
         count: planet.count,
         attention: inward,
+        orbit: planet.satellites.length > 0 ? orbit : undefined,
+        showLabel: true,
       });
-      edges.push({ from: "school", to: planetId });
+      if (focus.level > 1) edges.push({ from: "school", to: planetId });
+    }
+    if (focus.level === 1) {
+      const origin = nodes.find((node) => node.id === planetId);
+      if (!origin) return;
+      const orbit = origin.orbit ?? satelliteOrbit(origin.r, planet.satellites.length);
+      planet.satellites.forEach((satellite, satIndex) => {
+        const topicId = `topic:${planet.subject}/${satellite.topic}`;
+        const moon = satellitePosition(origin, satIndex, planet.satellites.length, orbit);
+        nodes.push({
+          id: topicId,
+          kind: "topic",
+          label: satellite.topic,
+          x: moon.x,
+          y: moon.y,
+          r: Math.max(6, Math.round(satellite.radius * 0.72)),
+          count: satellite.count,
+          attention: attention.has(`${planet.subject}/${satellite.topic}`) || attention.has(satellite.topic),
+          showLabel: false,
+        });
+      });
     }
   });
 
@@ -407,12 +481,16 @@ export function layoutScene(
     });
     if (origin && focus.level === 3) {
       const relations = [
-        { id: "questions", label: "質問", count: satellite?.count ?? 0 },
-        { id: "checks", label: "確認", count: satellite?.checkAnswers ?? 0 },
-        { id: "prompts", label: "先生の問い", count: satellite?.promptCount ?? 0 },
+        { id: "questions", label: "質問", count: satellite?.count ?? 0, loop: false },
+        { id: "prompts", label: "先生の問い", count: satellite?.promptCount ?? 0, loop: true },
+        { id: "checks", label: "確認", count: satellite?.checkAnswers ?? 0, loop: true },
+        { id: "action", label: "対応", count: satellite?.followUpCount ?? 0, loop: true },
+        { id: "recheck", label: "再確認", count: satellite?.recheckCount ?? 0, loop: true },
+        { id: "result", label: "結果", count: satellite?.recheckCount ? 1 : 0, loop: true },
       ];
+      let previous: string | null = origin.id;
       relations.forEach((item, index) => {
-        const seat = ring(origin, index, relations.length, origin.r + 108, 0.4);
+        const seat = ring(origin, index, relations.length, origin.r + 118, 0.15);
         const relId = `relation:${focus.subject}/${focus.topic}/${item.id}`;
         nodes.push({
           id: relId,
@@ -422,8 +500,10 @@ export function layoutScene(
           y: seat.y,
           r: bodyRadius(item.count, 8, 16),
           count: item.count,
+          attention: item.loop && item.count > 0,
         });
-        edges.push({ from: origin.id, to: relId });
+        edges.push({ from: previous ?? origin.id, to: relId });
+        previous = relId;
       });
     }
   }
@@ -450,6 +530,13 @@ export function layoutScene(
   }
 
   const visible = nodes.filter((node) => node.kind !== "school" || focus.level === 1);
+  if (focus.level === 1) {
+    return {
+      nodes,
+      edges,
+      camera: { x: 0, y: 0, w: 920, h: 560 },
+    };
+  }
   const xs = visible.map((node) => node.x);
   const ys = visible.map((node) => node.y);
   const minX = Math.min(...xs, CX) - 80;

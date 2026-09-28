@@ -5,6 +5,9 @@ import { Guard } from "@/components/Guard";
 import { api } from "@/lib/client";
 import { SUBJECTS } from "@/lib/constants";
 import type { ClassTopicState } from "@/lib/prompts";
+import type { ChainEvent, EnrichedClassTopic, OptionTally } from "@/lib/loop";
+
+type TopicRow = ClassTopicState & EnrichedClassTopic;
 
 export default function TeacherUniversePage() {
   return (
@@ -20,8 +23,8 @@ function ClassUniverse() {
   const [data, setData] = useState<{
     homeroom: string;
     studentCount: number;
-    topics: ClassTopicState[];
-    confirmCandidates: ClassTopicState[];
+    topics: TopicRow[];
+    confirmCandidates: TopicRow[];
     disclaimer: string;
   } | null>(null);
   const [error, setError] = useState("");
@@ -32,8 +35,8 @@ function ClassUniverse() {
       homerooms: string[];
       homeroom: string;
       studentCount: number;
-      topics: ClassTopicState[];
-      confirmCandidates: ClassTopicState[];
+      topics: TopicRow[];
+      confirmCandidates: TopicRow[];
       disclaimer: string;
     }>(`/api/class-universe${query}`);
     setRooms(payload.homerooms);
@@ -52,7 +55,7 @@ function ClassUniverse() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs tracking-[0.2em] text-terracotta">CLASS UNIVERSE</p>
-          <h1 className="mt-1 font-serif text-3xl">{data.homeroom}の問い</h1>
+          <h1 className="mt-1 font-serif text-3xl">{data.homeroom}の問いを、次につなげる</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">{data.disclaimer}</p>
         </div>
         <select
@@ -69,7 +72,7 @@ function ClassUniverse() {
       </div>
       {error ? <p className="text-rose">{error}</p> : null}
       <section className="card p-6">
-        <h2 className="font-serif text-2xl">確認候補</h2>
+        <h2 className="font-serif text-2xl">次につなげられる質問</h2>
         {data.confirmCandidates.length === 0 ? (
           <p className="mt-3 text-sm text-muted">いま追加確認を急ぐ材料は少ないです。</p>
         ) : (
@@ -91,17 +94,28 @@ function ClassUniverse() {
           <article key={`${item.subject}/${item.topic}`} className="card p-5">
             <p className="text-xs text-muted">{item.subject}</p>
             <h3 className="font-serif text-xl">{item.topic}</h3>
+            {item.loopLabel ? <p className="mt-1 text-xs text-terracotta">{item.loopLabel}</p> : null}
             <p className="mt-2 text-sm">
-              質問 {item.questionCount} ・ 理解チェック {item.checkAnswers}人（不安 {item.checkAnxious}） ・ 先生の問い {item.promptAnswers}
-              {item.promptAudience ? ` / ${item.promptAudience}` : ""}
+              質問 {item.questionCount} ・ 先生の問いへの回答 {item.promptAnswers} ・ 理解チェック {item.checkAnswers}人（不安 {item.checkAnxious}） ・ 再確認 {item.recheckCount}回
             </p>
-            {item.confirmCandidate ? (
-              <div className="mt-3 flex flex-wrap gap-2">
+            {item.before ? <Tally title="確認前" rows={item.before} /> : null}
+            {item.after ? <Tally title="確認後" rows={item.after} /> : null}
+            {item.chain?.length ? (
+              <ol className="mt-3 space-y-1 text-xs text-muted">
+                {item.chain.slice(-6).map((event: ChainEvent, index: number) => (
+                  <li key={`${event.at}-${index}`}>
+                    {event.title}
+                    {event.detail ? `：${event.detail}` : ""}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <div className="mt-3 flex flex-wrap gap-2">
                 <a
                   href={`/teacher/prompts/new?subject=${encodeURIComponent(item.subject)}&topic=${encodeURIComponent(item.topic)}&homeroom=${encodeURIComponent(data.homeroom)}`}
                   className="btn-navy text-xs"
                 >
-                  生徒に問いを送る
+                  このテーマの確認を送る
                 </a>
                 <button
                   type="button"
@@ -113,8 +127,9 @@ function ClassUniverse() {
                         subject: item.subject,
                         topic: item.topic,
                         kind: "class_review",
+                        homeroom: data.homeroom,
                       }),
-                    })
+                    }).then(() => load(data.homeroom))
                   }
                 >
                   授業で確認する
@@ -129,17 +144,30 @@ function ClassUniverse() {
                         subject: item.subject,
                         topic: item.topic,
                         kind: "test_candidate",
+                        homeroom: data.homeroom,
                       }),
-                    })
+                    }).then(() => load(data.homeroom))
                   }
                 >
                   出題検討候補にする
                 </button>
-              </div>
-            ) : null}
+            </div>
           </article>
         ))}
       </section>
+    </div>
+  );
+}
+
+function Tally({ title, rows }: { title: string; rows: OptionTally[] }) {
+  return (
+    <div className="mt-3 text-sm">
+      <p className="font-medium">{title}</p>
+      {rows.map((row) => (
+        <p key={row.id} className="text-muted">
+          {row.label} {row.count}人
+        </p>
+      ))}
     </div>
   );
 }

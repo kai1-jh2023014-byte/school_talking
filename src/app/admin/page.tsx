@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { BarList, HourBars } from "@/components/Charts";
+import { UniversePreview } from "@/components/UniversePreview";
 import { api } from "@/lib/client";
 import type { AnalyticsPayload } from "@/lib/analytics";
 
@@ -43,7 +44,16 @@ function AdminDashboard() {
   }
 
   if (!data) {
-    return <p className="text-muted">{error || "読み込み中…"}</p>;
+    return (
+      <div className="space-y-8">
+        <p className="text-muted">{error || "読み込み中…"}</p>
+        <UniversePreview
+          title="学校の Question Universe"
+          caption="質問が、先生と確認と次の問いへつながっていく様子です。"
+          href="/admin/universe"
+        />
+      </div>
+    );
   }
 
   return (
@@ -62,6 +72,12 @@ function AdminDashboard() {
       </div>
 
       {error ? <p className="text-rose">{error}</p> : null}
+
+      <UniversePreview
+        title="学校の Question Universe"
+        caption="質問が、先生と確認と次の問いへつながっていく様子です。"
+        href="/admin/universe"
+      />
 
       <div className="grid gap-3 md:grid-cols-2">
         <Link href="/admin/staffroom" className="card block bg-navy p-6 text-cream transition hover:bg-ink">

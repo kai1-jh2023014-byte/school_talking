@@ -194,11 +194,11 @@ export function createSeedQuestions(): Question[] {
     q({
       id: "q-1",
       studentId: "u-student-1",
-      body: "二次関数 y = -2x^2 + 8x + 1 の最大値の求め方がわかりません。平方完成でよいのでしょうか。",
+      body: "二次関数の最大値って、なんで頂点なんですか？",
       createdAt: hoursAgo(2),
       subject: "数学",
       topic: "二次関数",
-      summary: "二次関数の最大値の求め方",
+      summary: "なぜ頂点が最大値になる？",
       urgency: "normal",
       recommendedDept: "数学科",
       status: "open",
@@ -549,6 +549,34 @@ export function createSeedQuestions(): Question[] {
       answeredAt: hoursAgo(24 * 45 - 1),
       answeredBy: "u-math-a",
     }),
+    q({
+      id: "q-23",
+      studentId: "u-student-1",
+      body: "そもそも平方完成って、何をしているんですか？",
+      createdAt: hoursAgo(1.2),
+      subject: "数学",
+      topic: "二次関数",
+      summary: "平方完成が分からない",
+      urgency: "normal",
+      recommendedDept: "数学科",
+      status: "open",
+      assignedTeacherId: "u-math-a",
+      suggestedTeacherIds: ["u-math-a"],
+    }),
+    q({
+      id: "q-24",
+      studentId: "u-student-2",
+      body: "下に凸のときは、頂点が最小値になるんですよね？最大のときと何が違いますか。",
+      createdAt: hoursAgo(0.8),
+      subject: "数学",
+      topic: "二次関数",
+      summary: "最小値の場合は？",
+      urgency: "normal",
+      recommendedDept: "数学科",
+      status: "matched",
+      assignedTeacherId: "u-math-a",
+      suggestedTeacherIds: ["u-math-a"],
+    }),
   ];
 }
 
@@ -583,6 +611,7 @@ export function createSeedStore(): StoreData {
       ],
       allowFreeText: true,
       audience: { type: "class", homeroom: "2年A組" },
+      sourceQuestionId: "q-1",
       createdAt: hoursAgo(5),
       status: "open",
     },
@@ -603,6 +632,22 @@ export function createSeedStore(): StoreData {
       createdAt: hoursAgo(2),
       status: "open",
     },
+    {
+      id: "p-recheck-1",
+      kind: "understanding_check",
+      teacherId: "u-math-a",
+      subject: "数学",
+      topic: "二次関数",
+      body: "二次関数の最大・最小を、自力で解けそうですか？",
+      options: CHECK_OPTIONS,
+      allowFreeText: false,
+      audience: { type: "class", homeroom: "2年A組" },
+      createdAt: hoursAgo(1),
+      status: "open",
+      purpose: "recheck",
+      parentPromptId: "p-check-1",
+      followUpId: "fu-1",
+    },
   ];
   const promptResponses: PromptResponse[] = [
     {
@@ -622,12 +667,25 @@ export function createSeedStore(): StoreData {
     },
   ];
   return {
-    version: 5,
+    version: 6,
     users: createSeedUsers(),
     questions: createSeedQuestions(),
     prompts,
     promptResponses,
-    followUps: [],
+    followUps: [
+      {
+        id: "fu-1",
+        subject: "数学",
+        topic: "二次関数",
+        kind: "class_review",
+        actorId: "u-math-a",
+        createdAt: hoursAgo(2),
+        status: "planned",
+        promptId: "p-check-1",
+        recheckPromptId: "p-recheck-1",
+        homeroom: "2年A組",
+      },
+    ],
   };
 }
 

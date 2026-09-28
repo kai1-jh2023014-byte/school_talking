@@ -19,7 +19,9 @@ export default function NewPromptPage() {
 function Form() {
   const params = useSearchParams();
   const router = useRouter();
-  const [kind, setKind] = useState<"teacher_question" | "understanding_check">("teacher_question");
+  const [kind, setKind] = useState<"teacher_question" | "understanding_check">(
+    (params.get("kind") as "teacher_question" | "understanding_check") || "teacher_question",
+  );
   const [subject, setSubject] = useState(params.get("subject") || "数学");
   const [topic, setTopic] = useState(params.get("topic") || "二次関数");
   const [homeroom, setHomeroom] = useState(params.get("homeroom") || "2年A組");
@@ -45,6 +47,9 @@ function Form() {
           body,
           allowFreeText: kind === "teacher_question",
           audience: { type: "class", homeroom },
+          purpose: params.get("purpose") || undefined,
+          parentPromptId: params.get("parentPromptId") || undefined,
+          followUpId: params.get("followUpId") || undefined,
         }),
       });
       router.push("/teacher/universe");

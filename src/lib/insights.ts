@@ -1,6 +1,12 @@
 import { SUBJECTS } from "./constants";
-import { isAnxiousResponse, promptsOf, responsesOf } from "./prompts";
+import { followUpsOf, isAnxiousResponse, promptsOf, responsesOf } from "./prompts";
 import type { CachedSchoolInsight, Question, StoreData } from "./types";
+import {
+  beforeAfterChecks,
+  topicLoopPhase,
+  type LoopPhase,
+  type OptionTally,
+} from "./loop";
 import {
   UNIVERSE_WINDOW_DAYS,
   clusterQuestions,
@@ -26,6 +32,12 @@ export type TopicSnapshot = {
   checkAnxious: number;
   promptCount: number;
   promptAnswers: number;
+  recheckCount: number;
+  loopPhase: LoopPhase;
+  before: OptionTally[] | null;
+  after: OptionTally[] | null;
+  reviewPlanned: boolean;
+  testCandidate: boolean;
 };
 
 export type SubjectSnapshot = {
@@ -57,12 +69,14 @@ export function snapshotFingerprint(store: StoreData | Question[]): string {
   const questions = Array.isArray(store) ? store : store.questions;
   const prompts = Array.isArray(store) ? [] : promptsOf(store);
   const responses = Array.isArray(store) ? [] : responsesOf(store);
+  const followUps = Array.isArray(store) ? [] : followUpsOf(store);
   const parts = [
     ...questions.map((question) => `q:${question.id}:${question.subject}:${question.topic}:${question.createdAt}`),
-    ...prompts.map((prompt) => `p:${prompt.id}:${prompt.kind}:${prompt.createdAt}`),
+    ...prompts.map((prompt) => `p:${prompt.id}:${prompt.kind}:${prompt.createdAt}:${prompt.parentPromptId ?? ""}`),
     ...responses.map((item) => `r:${item.id}:${item.promptId}:${item.optionId ?? ""}:${item.createdAt}`),
+    ...followUps.map((item) => `f:${item.id}:${item.kind}:${item.status ?? "planned"}:${item.recheckPromptId ?? ""}`),
   ].sort();
-  const raw = `${questions.length}:${prompts.length}:${responses.length}|${parts.join("|")}`;
+  const raw = `${questions.length}:${prompts.length}:${responses.length}:${followUps.length}|${parts.join("|")}`;
   let hash = 2166136261;
   for (let index = 0; index < raw.length; index += 1) {
     hash ^= raw.charCodeAt(index);
@@ -114,6 +128,12 @@ export function buildSchoolSnapshot(store: StoreData, now = new Date()): SchoolS
         const prompt = checks.find((prompt) => prompt.id === item.promptId);
         return prompt ? isAnxiousResponse(prompt, item) : false;
       }).length;
+      const marks = followUpsOf(store).filter((item) => item.subject === subject && item.topic === topic);
+      const { before, after, recheckCount } = beforeAfterChecks(store, subject, topic);
+      const loopPhase = topicLoopPhase(store, subject, topic, {
+        questionCount: owned.length,
+        checkAnxious,
+      });
       return {
         subject,
         topic,
@@ -129,6 +149,12 @@ export function buildSchoolSnapshot(store: StoreData, now = new Date()): SchoolS
         promptAnswers: topicResponses.filter((item) =>
           topicPrompts.some((prompt) => prompt.kind === "teacher_question" && prompt.id === item.promptId),
         ).length,
+        recheckCount,
+        loopPhase,
+        before,
+        after,
+        reviewPlanned: marks.some((item) => item.kind === "class_review" && (item.status ?? "planned") === "planned"),
+        testCandidate: marks.some((item) => item.kind === "test_candidate"),
       };
     })
     .sort((a, b) => b.recentCount - a.recentCount || b.count - a.count);
@@ -169,6 +195,7 @@ export function snapshotForJev(snapshot: SchoolSnapshot) {
       checkAnxious: topic.checkAnxious,
       promptCount: topic.promptCount,
       promptAnswers: topic.promptAnswers,
+      recheckCount: topic.recheckCount,
     })),
   };
 }

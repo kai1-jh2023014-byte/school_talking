@@ -100,6 +100,10 @@ export function createPrompt(input: {
   options?: PromptOption[];
   allowFreeText?: boolean;
   audience: PromptAudience;
+  purpose?: Prompt["purpose"];
+  parentPromptId?: string;
+  sourceQuestionId?: string;
+  followUpId?: string;
 }): Prompt {
   const options =
     input.options && input.options.length > 0
@@ -119,6 +123,10 @@ export function createPrompt(input: {
     audience: input.audience,
     createdAt: new Date().toISOString(),
     status: "open",
+    purpose: input.purpose ?? (input.parentPromptId ? "recheck" : "initial"),
+    parentPromptId: input.parentPromptId,
+    sourceQuestionId: input.sourceQuestionId,
+    followUpId: input.followUpId,
   };
 }
 

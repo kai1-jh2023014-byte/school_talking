@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Guard } from "@/components/Guard";
 import { QuestionStatusChip, UrgencyChip } from "@/components/QuestionChips";
+import { UniversePreview } from "@/components/UniversePreview";
 import { usePoll } from "@/hooks/usePoll";
 import { api } from "@/lib/client";
 import { formatDateTime } from "@/lib/format";
@@ -121,6 +122,12 @@ function TeacherHome() {
       </section>
 
       {error ? <p className="text-rose">{error}</p> : null}
+
+      <UniversePreview
+        title="担当クラスの宇宙"
+        caption="クラスの質問を、次の確認や授業につなげられます。"
+        href="/teacher/universe"
+      />
 
       <section className="grid gap-3 sm:grid-cols-2">
         <Link href="/teacher/universe" className="card block p-5 hover:-translate-y-0.5">

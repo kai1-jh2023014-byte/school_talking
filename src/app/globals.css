@@ -62,3 +62,118 @@ body {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
 }
+
+.universe-camera,
+.universe-scale {
+  transform-box: view-box;
+}
+
+.universe-camera {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.universe-node {
+  transition: opacity 220ms ease-in-out;
+}
+
+.universe-scale {
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.universe-disk,
+.universe-star {
+  transition:
+    r 320ms ease-out,
+    stroke-width 150ms ease-out,
+    stroke 150ms ease-out;
+}
+
+.universe-label {
+  transition:
+    font-size 150ms ease-out,
+    fill-opacity 180ms ease-in-out;
+}
+
+.universe-edge {
+  transition:
+    stroke-opacity 200ms ease-out,
+    stroke-width 200ms ease-out;
+}
+
+.universe-fx-particle {
+  transform-box: view-box;
+  animation: universe-fx-particle 0.55s ease-out 1 forwards;
+}
+
+.universe-fx-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: universe-fx-ripple 0.65s ease-out 1 forwards;
+}
+
+.universe-loop-edge {
+  stroke-dasharray: 5 7;
+  animation: universe-flow 0.7s ease-out 1;
+}
+
+@keyframes universe-flow {
+  from {
+    stroke-dashoffset: 48;
+    opacity: 0.15;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+}
+
+@keyframes universe-fx-particle {
+  from {
+    transform: translate(var(--x0), var(--y0));
+    opacity: 0.85;
+  }
+  to {
+    transform: translate(var(--x1), var(--y1));
+    opacity: 0;
+  }
+}
+
+@keyframes universe-fx-ripple {
+  from {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes universe-fx-halo {
+  from {
+    opacity: 0.55;
+    stroke-width: 1.1;
+  }
+  to {
+    opacity: 0;
+    stroke-width: 2.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .universe-camera,
+  .universe-scale,
+  .universe-node,
+  .universe-disk,
+  .universe-star,
+  .universe-label,
+  .universe-edge {
+    transition: none !important;
+  }
+
+  .universe-fx-particle,
+  .universe-fx-ripple,
+  .universe-fx-halo {
+    animation: none !important;
+  }
+}
