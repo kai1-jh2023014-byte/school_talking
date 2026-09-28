@@ -183,7 +183,13 @@ export function QuestionUniverse({
     return map;
   }, [laidOut]);
   const relatedLinks = useMemo(() => relatedStarLinks(loops), [loops]);
-  const activeLoop = selection.kind === "star" ? loops.find((item) => item.questionId === selection.id) : undefined;
+  const activeLoop =
+    selection.kind === "star"
+      ? loops.find((item) => item.questionId === selection.id)
+      : selection.kind === "satellite"
+        ? loops.find((item) => item.subject === selection.subject && item.topic === selection.topic && item.questionId === data.featuredQuestionId) ??
+          loops.find((item) => item.subject === selection.subject && item.topic === selection.topic)
+        : undefined;
 
   function openQuestion(id: string) {
     const loop = loops.find((item) => item.questionId === id);
@@ -609,21 +615,26 @@ function SatelliteSystem({
         const active = selection.kind === "star" && selection.id === star.id;
         const starHover = hover?.kind === "star" && hover.id === star.id;
         return (
-          <circle
+          <g
             key={star.id}
-            className="universe-star cursor-pointer"
-            cx={starPoint.x}
-            cy={starPoint.y}
-            r={active || starHover ? 4.2 : star.recent ? 3.1 : 2.4}
-            fill={star.recent ? "#fff6d2" : "#d7deea"}
-            stroke={active || starHover ? "#fffaf1" : "none"}
-            strokeWidth={active || starHover ? 1.4 : 0}
+            className="cursor-pointer"
             onMouseEnter={() => onHover({ kind: "star", id: star.id })}
             onClick={(event) => {
               event.stopPropagation();
               onSelect({ kind: "star", subject: planet.subject, topic: satellite.topic, id: star.id });
             }}
-          />
+          >
+            <circle cx={starPoint.x} cy={starPoint.y} r="10" fill="transparent" />
+            <circle
+              className="universe-star"
+              cx={starPoint.x}
+              cy={starPoint.y}
+              r={active || starHover ? 4.6 : star.recent ? 3.4 : 2.8}
+              fill={star.recent ? "#fff6d2" : "#d7deea"}
+              stroke={active || starHover ? "#fffaf1" : "none"}
+              strokeWidth={active || starHover ? 1.4 : 0}
+            />
+          </g>
         );
       })}
       <g
