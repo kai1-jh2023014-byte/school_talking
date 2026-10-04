@@ -28,12 +28,26 @@ AIは答えを書きません。科目・分野・緊急度を整理し、いま
 
 ### Windows（デスクトップから）
 
-1. このフォルダで `デスクトップにショートカットを作る.bat` を開く
-2. デスクトップにできた「つなぐ」を開く
+新しい bat はブランチ `cursor/desktop-launcher-979a` にあります。エクスプローラーに `start.bat` や `start-tsunagu.bat` が無いときは、まだそのブランチを取り込んでいません。
 
-`start.bat` でも同じです。毎回 `npm install` してから `npm run dev` を始め、すでに 3000 番が使われていれば先に止めます。黒い窓は起動中は閉じないでください。
+PowerShell または「コマンドプロンプト」で、つなぐのフォルダを開いてから：
 
-デスクトップに `つなぐ.bat` だけコピーした場合も、一度リポジトリ側の `start.bat` を実行していれば、保存したフォルダを探して起動します。
+```bat
+cd /d C:\Users\kabuy\school_talking
+git fetch origin cursor/desktop-launcher-979a
+git checkout cursor/desktop-launcher-979a
+git pull origin cursor/desktop-launcher-979a
+```
+
+フォルダを更新すると、次のファイルが出ます。
+
+- `start-tsunagu.bat` … これを開く（いまある `start-tsunagu4.bat` の代わり）
+- `start.bat` … 同じ起動
+- `install-desktop-shortcut.bat` … デスクトップへ置く
+
+そのあと `install-desktop-shortcut.bat` を開くと、デスクトップの「つなぐ」から起動できます。
+
+毎回 `npm install` してから `npm run dev` を始め、すでに 3000 番が使われていれば先に止めます。黒い窓は起動中は閉じないでください。
 
 ### ターミナル
 

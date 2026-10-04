@@ -23,6 +23,13 @@ if not defined REPO (
   exit /b 1
 )
 
+if not exist "%REPO%start.bat" if exist "%REPO%start-tsunagu.bat" (
+  cd /d "%REPO%"
+  call "%REPO%start-tsunagu.bat"
+  endlocal
+  exit /b %ERRORLEVEL%
+)
+
 if not exist "%REPO%start.bat" (
   echo "%REPO%" に start.bat がありません。
   pause

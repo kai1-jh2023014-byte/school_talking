@@ -19,6 +19,7 @@ for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "[Environment]
 if not defined DESKTOP set "DESKTOP=%USERPROFILE%\Desktop"
 
 copy /Y "%~dp0つなぐ.bat" "%DESKTOP%\つなぐ.bat" >nul
+copy /Y "%~dp0start-tsunagu.bat" "%DESKTOP%\start-tsunagu.bat" >nul
 
 powershell -NoProfile -Command "$d = [Environment]::GetFolderPath('Desktop'); $s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d 'つなぐ.lnk')); $s.TargetPath = Join-Path '%ROOT%' 'start.bat'; $s.WorkingDirectory = '%ROOT%'; $s.WindowStyle = 1; $s.Description = 'つなぐを起動'; $s.Save()"
 
