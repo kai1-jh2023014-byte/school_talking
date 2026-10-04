@@ -42,7 +42,20 @@ npm run build
 npm run dev
 ```
 
-Windows ではリポジトリ直下の `start.bat` でも起動できます。bat はデスクトップではなく、このフォルダに置いてください。`git pull` のあとは同じフォルダで `npm install` が必要です。`Can't resolve 'bcryptjs'` は、パッケージ未インストールのときに出ます。
+Windows では、**質問宇宙が入っている枝** `cursor/desktop-on-universe-979a`（中身は最新の Question Universe）を開いてから起動してください。
+
+```bat
+cd /d C:\Users\kabuy\school_talking
+git fetch origin
+git checkout cursor/desktop-on-universe-979a
+git pull origin cursor/desktop-on-universe-979a
+```
+
+フォルダに `start-tsunagu.bat` が出たら、それを開きます。`install-desktop-shortcut.bat` を一度開くと、デスクトップの「つなぐ」からも同じ最新版が起動します。
+
+毎回 `npm install` してから `npm run dev` を始め、すでに 3000 番が使われていれば先に止めます。`Can't resolve 'bcryptjs'` はパッケージ未インストールのときに出ます。起動中は黒い窓を閉じないでください。
+
+`cursor/desktop-launcher-979a` は最初の版の上にあるので、そちらを開くと今回の質問宇宙は出ません。
 
 ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
 
